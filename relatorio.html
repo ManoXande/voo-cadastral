@@ -25,7 +25,7 @@
   .folha { width: 210mm; min-height: 297mm; margin: 14px auto; background: #fff; padding: 13mm 15mm 11mm; position: relative;
     box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 30px 60px -30px rgba(15,17,21,.18); }
   .timbre { display: flex; justify-content: space-between; align-items: center; }
-  .timbre img { height: 11mm; }
+  .timbre img { height: 12mm; }
   .timbre .rotulo { text-align: right; font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--miuda); line-height: 1.6; }
   .filete { height: 2px; background: linear-gradient(90deg, var(--verde) 0 60mm, var(--ink) 60mm); margin: 4mm 0 7mm; }
   .sobre { font-size: 10px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--verde-tinta); display: flex; align-items: center; gap: 8px; }
@@ -96,7 +96,7 @@ function montar() {
   const data = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
   const para = nome ? `Preparado para <b>${esc(nome)}</b>${cargo ? ", " + esc(cargo) : ""} · ${esc(M.n)} · ${data}` : `${esc(M.n)} · ${data}`;
   let h = `<div class="folha">
-    <div class="timbre"><img src="marca/logo-autha-papel.png" alt="Autha Engenharia e Mapeamento"><div class="rotulo">Autha-Geo · Raio-X do IPTU<br>Voo Cadastral · COMAC-SC 2026</div></div>
+    <div class="timbre"><img src="marca/authageo-cinza.png" alt="Autha-Geo"><div class="rotulo">Raio-X do IPTU<br>Voo Cadastral · COMAC-SC 2026</div></div>
     <div class="filete"></div>
     <div class="sobre">Relatório para a prefeitura</div>
     <h1>IPTU atual × potencial<br><span>${esc(M.n)}.</span></h1>
