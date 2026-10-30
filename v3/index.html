@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#030712">
+<title>Voo Cadastral · Autha-Geo</title>
+<link rel="icon" href="marca/icone-autha.png">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<canvas id="tela"></canvas>
+
+<!-- 1. tela inicial (com voo de demonstração ao fundo) -->
+<section class="tela ativa" id="tela-inicio">
+  <div class="inicio-topo">
+    <div class="marca"><img src="marca/authageo-branco.png" alt="Autha-Geo"></div>
+    <div class="som-aviso" id="som-aviso">Som desligado · clique uma vez na tela para ligar</div>
+  </div>
+  <div class="inicio-meio">
+    <div>
+      <div class="sobre">COMAC-SC 2026 · 295 cidades, um ranking</div>
+      <h1 class="titulo-jogo">Voo<span class="grad">Cadastral.</span></h1>
+      <p class="sub-jogo">Pilote um drone sobre o mapa real da <b>sua cidade</b> e cadastre o máximo de imóveis em 1 minuto. No fim, o <b>Raio-X do IPTU</b> do seu município.</p>
+      <div class="cta" id="cta-inicio">Aperte A para começar</div>
+      <div class="premio" id="premio-inicio"></div>
+    </div>
+    <div class="ranking" id="ranking-inicio"></div>
+  </div>
+</section>
+
+<!-- 2. escolher a cidade -->
+<section class="tela vidro" id="tela-cidade">
+  <div class="caixa">
+    <div class="sobre">Passo 1 de 2</div>
+    <h2>Qual é a sua cidade?</h2>
+    <input class="busca" id="busca" placeholder="Digite o nome do município" autocomplete="off" spellcheck="false">
+    <ul class="lista-cidades" id="lista-cidades"></ul>
+    <div class="dica">Os 295 municípios de SC, com as edificações vistas por satélite.<span class="dica-teclado"> <span class="tecla">↑ ↓</span> escolhe · <span class="tecla">Enter</span> ou <span class="tecla">A</span> confirma · <span class="tecla">Esc</span> volta · só com o controle: <span class="tecla">← →</span> troca a letra</span></div>
+  </div>
+</section>
+
+<!-- 3. HUD do voo -->
+<div id="hud">
+  <div class="hud-topo">
+    <!-- na TV são 3 cartões; no celular viram um painel só (ver "HUD compacto" no estilo.css) -->
+    <div class="hud-bloco hud-esq">
+      <div id="hud-cidade">—</div>
+      <div id="hud-bairro"></div>
+      <div class="hud-rot rot-imoveis">imóveis cadastrados</div>
+      <div class="hud-num verde" id="hud-imoveis">0</div>
+      <div class="barra barra-pct"><i id="hud-pct-barra" style="width:0%"></i></div>
+      <div class="hud-rot rot-pct"><span id="hud-pct">0%</span><span class="so-largo"> da área de voo</span></div>
+    </div>
+    <div class="hud-bloco bateria" id="hud-bateria">
+      <div class="hud-rot rot-bateria">bateria</div>
+      <div class="hud-num" id="hud-tempo">60</div>
+      <div class="barra barra-bat"><i id="hud-bateria-barra"></i></div>
+    </div>
+    <div class="hud-bloco hud-dir">
+      <div class="hud-rot rot-pontos">pontos</div>
+      <div class="hud-num" id="hud-pontos">0</div>
+      <div id="hud-combo">COMBO ×1</div>
+      <div id="hud-bonus"></div>
+    </div>
+  </div>
+  <div id="hud-msg"><div class="m1"></div><div class="m2"></div><div class="m3"></div></div>
+  <div id="hud-ajuda"></div>
+  <div id="abertura"><div class="a1">Voando sobre</div><div class="a2" id="abertura-cidade"></div><div class="a3" id="abertura-info"></div></div>
+  <div id="contagem"></div>
+  <div class="hud-baixo"><img class="hud-logo" src="marca/authageo-branco.png" alt="Autha-Geo"><div id="hud-coord"></div></div>
+  <canvas id="minimapa" width="220" height="220"></canvas>
+  <button id="btn-turbo">TURBO</button>
+</div>
+<div id="joy"><i></i></div>
+
+<div id="pausa">
+  <h2>Pausa</h2>
+  <div class="botoes">
+    <button class="btn btn-pri" data-acao="continuar">Continuar <span class="tecla">A</span></button>
+    <button class="btn" data-acao="sair">Sair do voo <span class="tecla">B</span></button>
+  </div>
+</div>
+
+<!-- 4. resultado -->
+<section class="tela vidro" id="tela-fim">
+  <div class="fim">
+    <div class="marca peq"><img src="marca/authageo-branco.png" alt="Autha-Geo"></div>
+    <div>
+      <div class="sobre">Resultado do voo</div>
+      <div class="estrelas" id="fim-estrelas"></div>
+      <h1 id="fim-titulo">Belo voo!</h1>
+      <p class="resumo" id="fim-resumo"></p>
+      <p class="piada" id="fim-piada"></p>
+      <div class="placar" id="fim-placar"></div>
+    </div>
+    <div class="cartao-iptu" id="fim-iptu"></div>
+    <div class="botoes">
+      <button class="btn btn-pri" data-acao="ficha">Receber o Raio-X no WhatsApp <span class="tecla">A</span></button>
+      <button class="btn" data-acao="de-novo">Voar de novo <span class="tecla">Y</span></button>
+      <button class="btn" data-acao="outra-cidade">Outra cidade <span class="tecla">X</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- 5. ficha (ranking + relatório) -->
+<section class="tela vidro" id="tela-ficha">
+  <form class="ficha" id="ficha" autocomplete="off" onsubmit="return false">
+    <div class="marca peq"><img src="marca/authageo-branco.png" alt="Autha-Geo"></div>
+    <div class="filete"></div>
+    <div class="sobre">Último passo · 30 segundos</div>
+    <h2>Receba o Raio-X da sua cidade no WhatsApp</h2>
+    <p class="sub" id="ficha-sub"></p>
+    <p class="dica-contatos">Indique quem cuida do IPTU e das obras: o relatório chega pronto para eles também.</p>
+    <div class="grade-ficha">
+      <div class="campo" id="c-nome"><label>Seu nome (aparece no ranking) *</label><input id="f-nome" maxlength="40" placeholder="Nome e sobrenome"></div>
+      <div class="campo" id="c-whats"><label>WhatsApp * <small>com DDD</small></label><input id="f-whats" inputmode="tel" placeholder="(49) 99999-9999"></div>
+      <div class="cheia"><span class="grupo-titulo">Cargo</span><div class="chips" id="f-cargo"></div></div>
+      <div class="bloco"><span class="grupo-titulo">Recebe também: setor de tributos</span>
+        <div class="campo"><input id="f-trib-nome" placeholder="Nome"></div>
+        <div class="campo"><input id="f-trib-whats" placeholder="WhatsApp" inputmode="tel"></div></div>
+      <div class="bloco"><span class="grupo-titulo">Recebe também: engenharia e obras</span>
+        <div class="campo"><input id="f-eng-nome" placeholder="Nome"></div>
+        <div class="campo"><input id="f-eng-whats" placeholder="WhatsApp" inputmode="tel"></div></div>
+      <div class="cheia"><span class="grupo-titulo">Quando podemos mostrar o diagnóstico do cadastro?</span><div class="chips" id="f-interesse"></div></div>
+      <label class="consent" id="c-consent"><input type="checkbox" id="f-consent">
+        <span>Autorizo a Autha-Geo a me enviar o relatório por WhatsApp e a falar sobre o cadastro da prefeitura comigo e com os contatos que indiquei. Os dados ficam só com a Autha-Geo; posso pedir a exclusão quando quiser. *</span></label>
+    </div>
+    <div id="ficha-erro"></div>
+    <div class="botoes">
+      <button class="btn btn-pri" data-acao="salvar-ficha">Receber o relatório e ver o ranking <span class="tecla">Enter</span></button>
+      <button class="btn" data-acao="voltar-fim">Voltar <span class="tecla">Esc</span></button>
+    </div>
+  </form>
+</section>
+
+<!-- 6. ranking final -->
+<section class="tela vidro" id="tela-ranking">
+  <div class="final">
+    <div class="marca"><img src="marca/authageo-branco.png" alt="Autha-Geo"></div>
+    <h2 id="final-titulo">Você está no ranking!</h2>
+    <p id="final-texto"></p>
+    <div class="ranking" id="ranking-final"></div>
+    <div class="botoes"><button class="btn btn-pri" data-acao="inicio">Próximo piloto <span class="tecla">A</span></button></div>
+  </div>
+</section>
+
+<div id="carregando">Carregando o mapa…</div>
+
+<!-- painel da equipe: ⚙ ou Ctrl+E -->
+<button id="btn-equipe" title="Área da equipe: segure 1 segundo (ou Ctrl+E)">⚙</button>
+<div id="equipe"><div class="equipe-caixa" id="equipe-caixa"></div></div>
+
+<script src="dados/municipios.js"></script>
+<script src="dados/iptu.js"></script>
+<script src="jogo.js"></script>
+</body>
+</html>
