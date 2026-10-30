@@ -8,13 +8,22 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const CHAVE = { partidas: "voo-cadastral:partidas", config: "voo-cadastral:config", ultima: "voo-cadastral:ultima-cidade" };
 const CFG_PADRAO = { duracao: 60, som: true, premio: "", voltarInicio: 60 };
 const ler = (k, padrao) => { try { return JSON.parse(localStorage.getItem(k)) ?? padrao; } catch { return padrao; } };
-const gravar = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+function gravar(k, v) {
+  try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+  catch (e) {
+    console.error("localStorage", e);
+    const el = document.getElementById("carregando");
+    if (el) { el.textContent = "A memória do navegador encheu: chame a equipe (⚙ → Baixar planilha)."; el.classList.add("ativo"); setTimeout(() => el.classList.remove("ativo"), 5000); }
+    return false;
+  }
+}
 let cfg = { ...CFG_PADRAO, ...ler(CHAVE.config, {}) };
 
 const MUN = window.MUNICIPIOS || [];
 const MUN_POR_COD = Object.fromEntries(MUN.map((m) => [m.c, m]));
 const IPTU = window.IPTU || {};
 const CASOS = window.CASOS_RECADASTRO || null;
+const INTERESSES = ["Sim, nesta semana", "Sim, depois da feira", "Só o relatório"];
 const CARGOS = ["Prefeito(a)", "Vice-prefeito(a)", "Secretário(a)", "Tributos / fiscal", "Engenharia", "Vereador(a)", "Outro"];
 
 const nf = new Intl.NumberFormat("pt-BR");
@@ -158,7 +167,7 @@ addEventListener("keyup", (e) => Ent.teclas.delete(e.code));
 addEventListener("blur", () => { Ent.teclas.clear(); if (J.estado === "voo") pausar(true); });
 document.addEventListener("visibilitychange", () => { if (document.hidden && J.estado === "voo") pausar(true); });
 addEventListener("pointerdown", (e) => {
-  if (e.pointerType === "touch") document.body.classList.add("toque");
+  if (e.pointerType === "touch") { document.body.classList.add("toque"); Ent.tipo = "toque"; }
   Som.garantir(); atividade(); setTimeout(atualizarAvisoSom, 100);
 }, true);
 addEventListener("gamepadconnected", () => { Ent.tipo = "pad"; atualizarCTA(); });
@@ -166,7 +175,7 @@ addEventListener("gamepadconnected", () => { Ent.tipo = "pad"; atualizarCTA(); }
 // joystick flutuante: encosta o dedo (ou o mouse) em qualquer lugar da tela do voo e arrasta
 const canvas = $("#tela");
 canvas.addEventListener("pointerdown", (e) => {
-  if (e.pointerType === "touch") document.body.classList.add("toque");
+  if (e.pointerType === "touch") { document.body.classList.add("toque"); Ent.tipo = "toque"; }
   if (J.estado === "inicio") { acao("confirmar"); return; }
   if (J.estado !== "voo" && J.estado !== "contagem") return;
   Ent.tipo = e.pointerType === "touch" ? "toque" : "mouse";
@@ -229,6 +238,7 @@ function montarCidade(c) {
 /* ============================== camadas desenhadas uma vez (fora da tela) ============================== */
 const GROSSO = matchMedia("(pointer: coarse)").matches;
 if (GROSSO) document.body.classList.add("toque");
+if (GROSSO) Ent.tipo = "toque";
 const TAM = GROSSO ? 2048 : 4096, TAM_RASTRO = 1024;
 const cvPredios = document.createElement("canvas"); cvPredios.width = cvPredios.height = TAM;
 const cvRastro = document.createElement("canvas"); cvRastro.width = cvRastro.height = TAM_RASTRO;
@@ -265,14 +275,18 @@ const J = {
   msgAte: 0, contagemT: 0, pousoT: 0, resultado: null, partidaId: null, alertaSeg: 99,
 };
 const MARCOS = [
-  { p: 0.10, t: "Base cartográfica no ar", s: "o laser já desenha a cidade" },
+  { p: 0.05, t: "Decolou!", s: "os primeiros imóveis já estão no mapa" },
+  { p: 0.10, t: "Sua cidade no mapa", s: "o laser desenha cada telhado" },
   { p: 0.20, t: "Área construída medida", s: "cada telhado com a sua metragem" },
-  { p: 0.35, t: "Cadastro × tributário", s: "aparece o que não estava lançado" },
-  { p: 0.50, t: "Meia cidade cadastrada!", s: "imóveis prontos para o CIB" },
-  { p: 0.70, t: "Planta de valores com base no mapa", s: "decisão justificada, sem achismo" },
+  { p: 0.30, t: "Cadastro × tributário", s: "aparece o que não estava lançado" },
+  { p: 0.40, t: "Ampliações encontradas", s: "a casa que cresceu e não foi lançada" },
+  { p: 0.50, t: "Meia cidade cadastrada!", s: "imóveis organizados para o CIB" },
+  { p: 0.65, t: "Planta de valores com base no mapa", s: "decisão justificada, sem achismo" },
+  { p: 0.80, t: "Cadastro quase completo", s: "pronto para conversar com o SINTER" },
   { p: 0.90, t: "Cidade quase inteira!", s: "o cadastro mais completo da COMAC" },
 ];
-const BONUS_MARCO = 3;
+const BONUS_MARCO = 3, BONUS_MAX = 15;   // o voo nunca passa de duração + 15 s (a fila do estande anda)
+function ganharTempo(s) { const dado = Math.max(0, Math.min(s, BONUS_MAX - J.bonusTempo)); J.bonusTempo += dado; J.tempo += dado; return dado; }
 
 // escala da cidade: tudo é proporcional ao tamanho da área de voo, para cidade pequena e grande serem igualmente jogáveis
 function escalaVoo(C) {
@@ -298,7 +312,7 @@ function prepararPartida(C, demo) {
   J.cam.x = J.drone.x; J.cam.y = J.drone.y;
   Object.assign(J, {
     tempo: cfg.duracao, decorrido: 0, pontos: 0, cadastrados: 0, dourados: 0, combo: 1, comboT: 0, ultimoAchado: -9,
-    marcos: [], fixAte: 0, poderes: [], urubus: [], part: [], textos: [], proximoPoder: 3.5, proximoUrubu: 9, msgAte: 0, alertaSeg: 99,
+    marcos: [], fixAte: 0, poderes: [], urubus: [], part: [], textos: [], proximoPoder: 3.5, proximoUrubu: 12, msgAte: 0, alertaSeg: 99, bonusTempo: 0,
   });
   J.demoAlvo = { t: Math.random() * 100 };
 }
@@ -306,16 +320,20 @@ function prepararPartida(C, demo) {
 /* ============================== laço principal ============================== */
 let ultimoT = performance.now();
 function quadro(t) {
+  requestAnimationFrame(quadro);   // agenda antes: um erro num quadro não congela o jogo
   const dt = Math.min(0.05, (t - ultimoT) / 1000);
   ultimoT = t;
-  lerPad();
-  if (J.estado === "voo") atualizarVoo(dt);
-  else if (J.estado === "contagem") atualizarContagem(dt);
-  else if (J.estado === "pouso") atualizarPouso(dt);
-  else if (J.demo && J.C && J.estado === "inicio") atualizarDemo(dt);
-  if (J.C) desenhar(t / 1000);
-  verificarInatividade();
-  requestAnimationFrame(quadro);
+  try {
+    lerPad();
+    if (!$("#equipe").classList.contains("ativo")) {   // painel da equipe aberto congela o voo e a contagem
+      if (J.estado === "voo") atualizarVoo(dt);
+      else if (J.estado === "contagem") atualizarContagem(dt);
+      else if (J.estado === "pouso") atualizarPouso(dt);
+      else if (J.demo && J.C && J.estado === "inicio") atualizarDemo(dt);
+    }
+    if (J.C) desenhar(t / 1000);
+    verificarInatividade();
+  } catch (e) { console.error(e); }
 }
 
 function moverDrone(dt, entrada) {
@@ -344,11 +362,14 @@ function moverDrone(dt, entrada) {
 
 function atualizarVoo(dt) {
   const ent = vetorEntrada();
+  if (ent.x || ent.y || ent.turbo) atividade();
+  else if (performance.now() - ultimaAtividade > 15000) { iniciarPouso("Piloto sumiu?", "voo encerrado depois de 15 s sem comando"); return; }
   const { px, py, v } = moverDrone(dt, ent);
   Som.motorVel(v / J.E.vel);
   J.decorrido += dt;
   J.tempo -= dt;
   escanear(px, py, J.drone.x, J.drone.y, dt);
+  if (J.estado !== "voo") return;   // a cidade chegou a 100% e o pouso já começou
   atualizarPoderes(dt);
   atualizarUrubus(dt);
   atualizarParticulas(dt);
@@ -380,6 +401,7 @@ function atualizarContagem(dt) {
   if (J.contagemT <= 0) {
     el.textContent = "";
     J.estado = "voo";
+    atividade();
     J.drone.alt = 1;
     Som.motorLiga();
     return;
@@ -388,15 +410,16 @@ function atualizarContagem(dt) {
   if (J.contagemT < 0.6 && el.textContent !== "DECOLAR!") { el.textContent = "DECOLAR!"; Som.contagem(true); }
 }
 
-function iniciarPouso() {
-  J.estado = "pouso"; J.pousoT = 1.6;
+function iniciarPouso(t1 = "Bateria no fim", t2 = "pousando o drone…") {
+  J.estado = "pouso"; J.pousoT = t1.startsWith("100%") ? 2.4 : 1.6;
   Som.motorDesliga(); Som.fim();
-  mensagem("Bateria no fim", "pousando o drone…", "");
+  mensagem(t1, t2, "");
 }
 function atualizarPouso(dt) {
   J.pousoT -= dt;
   const d = J.drone;
   d.vx *= 0.9; d.vy *= 0.9; d.alt = clamp(J.pousoT / 1.6, 0, 1);
+  atualizarHUD();
   atualizarParticulas(dt);
   if (J.pousoT <= 0) mostrarFim();
 }
@@ -442,7 +465,7 @@ function escanear(x1, y1, x2, y2, dt) {
   if (achados) { J.comboT += dt; J.ultimoAchado = J.decorrido; }
   else if (J.decorrido - J.ultimoAchado > 1.6) J.comboT = 0;
   const novoCombo = J.comboT >= 7 ? 4 : J.comboT >= 4 ? 3 : J.comboT >= 2 ? 2 : 1;
-  if (novoCombo > J.combo) { Som.poder(); flutuar(J.drone.x, J.drone.y, `COMBO ×${novoCombo}`, "#FBBF24", 1.4); }
+  if (novoCombo > J.combo) { Som.poder(); const c = $("#hud-combo"); c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); }
   J.combo = novoCombo;
   if (achados) {
     pontosAqui = achados * E.pontoBase * J.combo;
@@ -454,10 +477,22 @@ function escanear(x1, y1, x2, y2, dt) {
     pontosAqui += bonus;
     J.dourados += ouro;
     Som.dourado();
-    flutuar(J.drone.x, J.drone.y - E.raio * 0.6, `Área fora do cadastro! +${milhar(bonus)}`, "#FBBF24", 1.6);
+    const a = J.ouroAcum && performance.now() < J.ouroAcum.ate ? J.ouroAcum : { n: 0, pts: 0 };
+    a.n += ouro; a.pts += bonus; a.ate = performance.now() + 1800;
+    J.ouroAcum = a;
+    const el = $("#hud-bonus");
+    el.textContent = `${a.n > 1 ? a.n + " casas douradas" : "Casa dourada"} · +${milhar(a.pts)}`;
+    el.classList.add("on");
   }
   J.pontos += pontosAqui;
   verificarMarcos();
+  if (J.cadastrados >= J.C.n && J.estado === "voo") {
+    const bonus = Math.round(J.tempo * 2000);
+    J.pontos += bonus;
+    Som.marco();
+    J.tempo = 0;
+    iniciarPouso(`100% · ${J.C.nome} inteira cadastrada!`, `bônus de tempo: +${milhar(bonus)} pontos`);
+  }
 }
 
 function verificarMarcos() {
@@ -465,11 +500,9 @@ function verificarMarcos() {
   for (const m of MARCOS) {
     if (p >= m.p && !J.marcos.includes(m.p)) {
       J.marcos.push(m.p);
-      J.tempo += BONUS_MARCO;
+      const ganho = ganharTempo(BONUS_MARCO);
       Som.marco();
-      const pot = potencial(J.C.c);
-      const extra = !pot ? "" : pot.ganhoMax > pot.ganhoMin ? `Receita potencial: +${reais(pot.ganhoMin * p)} a ${reais(pot.ganhoMax * p)}/ano` : `Receita potencial: +${reais(pot.ganhoMin * p)}/ano`;
-      mensagem(`${Math.round(m.p * 100)}% · ${m.t}`, `${m.s} · +${BONUS_MARCO} s de bateria`, extra);
+      mensagem(`${Math.round(m.p * 100)}% · ${m.t}`, m.s, ganho ? `+${ganho} s de bateria` : "");
     }
   }
 }
@@ -483,14 +516,15 @@ function atualizarPoderes(dt) {
     // nasce à frente do drone, sobre uma edificação ainda não cadastrada se possível
     const dist = E.vista * (0.28 + Math.random() * 0.2), ang = d.ang + (Math.random() - 0.5) * 2.2;
     let x = clamp(d.x + Math.cos(ang) * dist, E.raio, J.C.L - E.raio), y = clamp(d.y + Math.sin(ang) * dist, E.raio, J.C.L - E.raio);
-    J.poderes.push({ x, y, tipo: Math.random() < 0.55 ? "bateria" : "fix", vida: 11 });
+    const cabeBateria = J.bonusTempo < BONUS_MAX;
+    J.poderes.push({ x, y, tipo: cabeBateria && Math.random() < 0.55 ? "bateria" : "fix", vida: 11 });
   }
   for (const p of J.poderes) {
     p.vida -= dt;
     if (Math.hypot(p.x - d.x, p.y - d.y) < E.vista * 0.06) {
       p.vida = -1;
       Som.poder();
-      if (p.tipo === "bateria") { J.tempo += 5; flutuar(p.x, p.y, "+5 s de bateria", "#4ADE80", 1.3); }
+      if (p.tipo === "bateria") { const g = ganharTempo(5); flutuar(p.x, p.y, g ? `+${g} s de bateria` : "Bateria cheia!", "#4ADE80", 1.3); }
       else { J.fixAte = J.decorrido + 6; flutuar(p.x, p.y, "Sinal FIX: laser dobrado!", "#6EE7B7", 1.5); }
       for (let k = 0; k < 14; k++) poeira(p.x, p.y, p.tipo === "bateria" ? "verde" : "menta");
     }
@@ -502,8 +536,8 @@ function atualizarPoderes(dt) {
 function atualizarUrubus(dt) {
   const E = J.E, d = J.drone;
   J.proximoUrubu -= dt;
-  if (J.proximoUrubu <= 0 && J.urubus.length < 2 && J.decorrido > 6) {
-    J.proximoUrubu = 7 + Math.random() * 5;
+  if (J.proximoUrubu <= 0 && J.urubus.length < (GROSSO ? 1 : 2) && J.decorrido > 10) {
+    J.proximoUrubu = 9 + Math.random() * 6;
     const lado = Math.random() < 0.5 ? -1 : 1, y = d.y + (Math.random() - 0.5) * E.vista * 0.7;
     J.urubus.push({ x: d.x - lado * E.vista * 0.9, y, vx: lado * E.vel * 0.42, vy: (Math.random() - 0.5) * E.vel * 0.15, vida: 9, fase: Math.random() * 6 });
   }
@@ -560,6 +594,8 @@ function desenhar(tempo) {
   // área de voo (fora dela fica mais escuro)
   ctx.fillStyle = "#060c1a";
   ctx.fillRect(sx(0), sy(0), C.L * esc, C.L * esc);
+  ctx.save(); ctx.setLineDash([10 * DPR, 8 * DPR]); ctx.strokeStyle = "rgba(110,231,183,.45)"; ctx.lineWidth = 2 * DPR;
+  ctx.strokeRect(sx(0), sy(0), C.L * esc, C.L * esc); ctx.restore();
 
   // grade UTM (SIRGAS 2000 / UTM 22S)
   const passo = passoGrade(E.vista);
@@ -621,7 +657,7 @@ function desenhar(tempo) {
   const dx = sx(d.x), dy = sy(d.y);
   const fix = J.decorrido < J.fixAte && !J.demo;
   if (J.estado === "voo" || J.demo || J.estado === "contagem") desenharLaser(dx, dy, d.ang, E.raio * (fix ? 1.8 : 1) * esc, tempo, fix, d.alt);
-  for (const u of J.urubus) desenharUrubu(sx(u.x), sy(u.y), u);
+  for (const u of J.urubus) desenharUrubu(sx(u.x), sy(u.y), u, tempo);
   desenharDrone(dx, dy, d, tempo);
 
   // textos flutuantes
@@ -714,10 +750,26 @@ function desenharPoder(x, y, p, tempo) {
   }
 }
 
-function desenharUrubu(x, y, u) {
-  const T = Math.min(W, H) * 0.035, asa = Math.sin(u.fase) * T * 0.35;
-  ctx.save(); ctx.translate(x, y); ctx.scale(Math.sign(u.vx) || 1, 1);
-  ctx.strokeStyle = "#0b0f19"; ctx.fillStyle = "#1f2937"; ctx.lineWidth = T * 0.16; ctx.lineCap = "round"; ctx.lineJoin = "round";
+function desenharUrubu(x, y, u, tempo) {
+  const T = Math.min(W, H) * 0.04, asa = Math.sin(u.fase) * T * 0.35, M = T * 1.4;
+  if (x < -M || y < -M || x > W + M || y > H + M) {
+    // fora da tela: triângulo vermelho piscando na borda, do lado de onde ele vem
+    const bx = clamp(x, M * 0.6, W - M * 0.6), by = clamp(y, M * 0.6, H - M * 0.6), a = Math.atan2(y - by, x - bx);
+    if (Math.sin(tempo * 12) > -0.3) {
+      ctx.save(); ctx.translate(bx, by); ctx.rotate(a);
+      ctx.fillStyle = "#f87171"; ctx.beginPath(); ctx.moveTo(T * 0.7, 0); ctx.lineTo(-T * 0.35, -T * 0.45); ctx.lineTo(-T * 0.35, T * 0.45); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    return;
+  }
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = "rgba(248,113,113,.22)"; ctx.beginPath(); ctx.arc(0, 0, T * 1.25, 0, 7); ctx.fill();
+  ctx.strokeStyle = "rgba(248,113,113,.7)"; ctx.lineWidth = Math.max(1.5, T * 0.05); ctx.stroke();
+  ctx.scale(Math.sign(u.vx) || 1, 1);
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = T * 0.28;
+  ctx.beginPath(); ctx.moveTo(-T, -asa); ctx.quadraticCurveTo(-T * 0.4, -T * 0.25, 0, 0); ctx.quadraticCurveTo(T * 0.4, -T * 0.25, T, -asa); ctx.stroke();
+  ctx.strokeStyle = "#0b0f19"; ctx.fillStyle = "#1f2937"; ctx.lineWidth = T * 0.16;
   ctx.beginPath(); ctx.moveTo(-T, -asa); ctx.quadraticCurveTo(-T * 0.4, -T * 0.25, 0, 0); ctx.quadraticCurveTo(T * 0.4, -T * 0.25, T, -asa); ctx.stroke();
   ctx.beginPath(); ctx.ellipse(0, T * 0.05, T * 0.18, T * 0.12, 0, 0, 7); ctx.fill();
   ctx.fillStyle = "#f87171"; ctx.beginPath(); ctx.arc(T * 0.2, 0, T * 0.06, 0, 7); ctx.fill();
@@ -743,6 +795,7 @@ function atualizarHUD() {
   setTxt("#hud-coord", `E ${milhar(e)}  N ${milhar(n)}  ·  SIRGAS 2000 / UTM 22S  ·  ${J.decorrido < J.fixAte ? "FIX" : "FLOAT"}`);
   if (performance.now() - (J.miniT || 0) > 200) { J.miniT = performance.now(); desenharMinimapa(); }
   if (J.msgAte && performance.now() > J.msgAte) { $("#hud-msg").classList.remove("on"); J.msgAte = 0; }
+  if (J.ouroAcum && performance.now() > J.ouroAcum.ate) { $("#hud-bonus").classList.remove("on"); J.ouroAcum = null; }
 }
 function desenharMinimapa() {
   const cv = $("#minimapa"), c = cv.getContext("2d"), S = cv.width, C = J.C;
@@ -768,14 +821,14 @@ function potencial(cod) {
   const v = IPTU[cod], m = MUN_POR_COD[cod];
   if (!v || !v.v) return null;
   if (CASOS && CASOS.min) return { tipo: "casos", ganhoMin: v.v * CASOS.min / 100, ganhoMax: v.v * CASOS.max / 100 };
-  const gap = m ? (v.pcMed - v.pc) * m.pop : 0;
-  return gap > 0 ? { tipo: "porte", ganhoMin: gap, ganhoMax: gap } : null;
+  return null;
 }
 
 /* ============================== telas ============================== */
 function mostrarTela(id) {
   $$(".tela").forEach((t) => t.classList.toggle("ativa", t.id === id));
   $("#hud").classList.toggle("ativo", id === "hud");
+  document.body.classList.toggle("em-voo", id === "hud");
   focarPrimeiro();
 }
 function focarPrimeiro() {
@@ -802,6 +855,8 @@ function clicarFoco() {
 }
 
 async function irInicio() {
+  escolhaSeq++;
+  $("#carregando").classList.remove("ativo");
   Som.motorDesliga();
   $("#pausa").classList.remove("ativo");
   J.estado = "inicio";
@@ -829,28 +884,43 @@ function irCidade() {
   filtrarCidades();
   setTimeout(() => b.focus(), 30);
 }
+const LETRAS = [...new Set(MUN.map((m) => semAcento(m.n)[0]))].sort();
 function filtrarCidades() {
   const q = semAcento($("#busca").value.trim());
-  filtro = q ? MUN.filter((m) => semAcento(m.n).includes(q)).sort((a, b) => semAcento(a.n).indexOf(q) - semAcento(b.n).indexOf(q) || a.n.localeCompare(b.n)) : [];
-  if (!q) { const u = MUN_POR_COD[ler(CHAVE.ultima, "")]; filtro = u ? [u] : []; }
-  filtro = filtro.slice(0, 7);
+  if (q.length === 1) filtro = MUN.filter((m) => semAcento(m.n).startsWith(q)).sort((a, b) => a.n.localeCompare(b.n));
+  else if (q) filtro = MUN.filter((m) => semAcento(m.n).includes(q)).sort((a, b) => semAcento(a.n).indexOf(q) - semAcento(b.n).indexOf(q) || a.n.localeCompare(b.n));
+  else { const u = MUN_POR_COD[ler(CHAVE.ultima, "")]; filtro = u ? [u] : []; }
   focoCidade = 0;
-  $("#lista-cidades").innerHTML = filtro.map((m, i) => `<li data-i="${i}" class="${i === focoCidade ? "foco" : ""}"><span>${esc(m.n)}</span><small>${milhar(m.edif)} edificações · ${milhar(m.pop)} hab.</small></li>`).join("")
+  desenharListaCidades(q);
+}
+function desenharListaCidades(q) {
+  const ini = clamp(focoCidade - 3, 0, Math.max(0, filtro.length - 7));
+  $("#lista-cidades").innerHTML = filtro.slice(ini, ini + 7).map((m, k) => { const i = ini + k; return `<li data-i="${i}" class="${i === focoCidade ? "foco" : ""}"><span>${esc(m.n)}</span><small>${milhar(m.edif)} edificações · ${milhar(m.pop)} hab.</small></li>`; }).join("")
     || (q ? `<li class="cinza">Nenhum município de SC com esse nome</li>` : "");
+}
+function trocarLetra(passo) {
+  const b = $("#busca"), atual = semAcento(b.value.trim());
+  const i = atual.length === 1 ? LETRAS.indexOf(atual) : passo > 0 ? -1 : 0;
+  b.value = LETRAS[(i + passo + LETRAS.length) % LETRAS.length].toUpperCase();
+  filtrarCidades();
+  Som.clique();
 }
 $("#busca").addEventListener("input", filtrarCidades);
 $("#lista-cidades").addEventListener("click", (e) => { const li = e.target.closest("li[data-i]"); if (li) escolherCidade(filtro[+li.dataset.i]); });
-function marcarFocoCidade() { $$("#lista-cidades li[data-i]").forEach((li, i) => li.classList.toggle("foco", i === focoCidade)); }
+function marcarFocoCidade() { desenharListaCidades(semAcento($("#busca").value.trim())); }
 
+let escolhaSeq = 0;
 async function escolherCidade(m) {
   if (!m) return;
   Som.clique();
-  gravar(CHAVE.ultima, m.c);
+  const seq = ++escolhaSeq;
   $("#carregando").textContent = `Carregando ${m.n}…`;
   $("#carregando").classList.add("ativo");
   try {
     const C = await abrirCidade(m.c);
+    if (seq !== escolhaSeq || J.estado !== "cidade") return;   // escolheu outra cidade ou voltou no meio da carga
     $("#carregando").classList.remove("ativo");
+    gravar(CHAVE.ultima, m.c);
     comecarVoo(C);
   } catch {
     $("#carregando").textContent = `O mapa de ${m.n} não foi encontrado na pasta "cidades".`;
@@ -865,8 +935,8 @@ function comecarVoo(C) {
   hudCache = {};
   $("#hud-cidade").textContent = C.nome;
   $("#hud-msg").classList.remove("on");
-  const ajuda = { pad: "Analógico move o drone · segure A para turbo", toque: "Arraste o dedo para pilotar · TURBO acelera", teclado: "Setas ou WASD movem o drone · Espaço = turbo", mouse: "Clique e arraste para pilotar · Espaço = turbo" };
-  $("#hud-ajuda").textContent = (ajuda[Ent.tipo] || ajuda.teclado) + " · pegue as casas douradas!";
+  const ajuda = { pad: "Analógico move o drone · segure A para turbo", toque: "Arraste o dedo para pilotar · segure TURBO", teclado: "Setas ou WASD movem o drone · Espaço = turbo", mouse: "Clique e arraste para pilotar · Espaço = turbo" };
+  $("#hud-ajuda").textContent = (ajuda[Ent.tipo] || ajuda.teclado) + " · fuja dos urubus, pegue as casas douradas!";
   $("#hud-ajuda").classList.remove("some");
   $("#contagem").textContent = "3";
   mostrarTela("hud");
@@ -881,7 +951,7 @@ function pausar(sim) {
 function moverFocoPausa() { $$("#pausa .btn").forEach((b, i) => b.classList.toggle("foco", i === 0)); }
 
 /* ---------- resultado ---------- */
-function partidas() { return ler(CHAVE.partidas, []); }
+function partidas() { const v = ler(CHAVE.partidas, []); return Array.isArray(v) ? v.filter((p) => p && typeof p === "object" && p.id) : []; }
 function mostrarFim() {
   const C = J.C, p = J.cadastrados / C.n, m = MUN_POR_COD[C.c] || { n: C.nome, edif: C.edifMun };
   J.estado = "fim";
@@ -900,7 +970,7 @@ function mostrarFim() {
     [milhar(res.pontos), "pontos"],
     [pos ? `${pos}º` : "—", "lugar no ranking de hoje"],
     [`${res.pct.toLocaleString("pt-BR")}%`, "da área de voo cadastrada"],
-    [milhar(J.dourados), J.dourados === 1 ? "área fora do cadastro achada" : "áreas fora do cadastro achadas"],
+    [milhar(J.dourados), J.dourados === 1 ? "casa dourada (bônus)" : "casas douradas (bônus)"],
   ].map(([b, s]) => `<div><b>${b}</b><span>${s}</span></div>`).join("");
   $("#fim-iptu").innerHTML = htmlIptu(C.c, m);
   mostrarTela("tela-fim");
@@ -910,64 +980,71 @@ function mostrarFim() {
 function htmlIptu(cod, m) {
   const v = IPTU[cod], pot = potencial(cod);
   const capital = cod === "4205407";
-  const cib = capital ? "O CIB das capitais já está valendo." : "CIB obrigatório para imóveis urbanos a partir de janeiro de 2027.";
-  const rs = (x) => x.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  const caso = ((CASOS && CASOS.cadastro) || []).find((c) => c.uf === "SC" && c.frase);
+  const proprio = caso && caso.municipio === m.n;
+  const faixa = (a, b) => (b > a * 1.05 ? `+${reais(a)} a ${reais(b)} por ano` : `+${reais(a)} por ano`);
   let h = `<span class="chip">RAIO-X DO IPTU</span><h2>${esc(m.n)}</h2>`;
-  h += `<div class="linha-iptu"><span>Edificações vistas por satélite</span><b>${milhar(m.edif)}</b></div>`;
-  if (v && v.v) {
-    h += `<div class="linha-iptu"><span>IPTU arrecadado em ${v.a}</span><b>${reais(v.v)}</b></div>`;
-    h += `<div class="linha-iptu"><span>IPTU por habitante</span><b>${rs(v.pc)}</b></div>`;
-    h += `<div class="linha-iptu"><span>Mediana de SC (${esc(v.porte)})</span><b>${rs(v.pcMed)}</b></div>`;
+  if (v && v.v) h += `<div class="linha-iptu"><span>IPTU arrecadado em ${v.a}</span><b>${reais(v.v)}</b></div>`;
+  if (proprio) h += `<p class="caso"><b>${esc(m.n)} já deu o primeiro passo:</b> ${esc(caso.frase)}. Agora é manter o cadastro vivo e pronto para o CIB.<small>Prefeitura de ${esc(caso.municipio)}</small></p>`;
+  else if (caso) h += `<p class="caso"><b>Aqui na região:</b> ${esc(caso.municipio)} ${esc(caso.frase)}.<small>${caso.fonte_tipo === "prefeitura" ? "Prefeitura de " + esc(caso.municipio) : "fonte no relatório"}</small></p>`;
+  const mostraGanho = pot && !proprio && pot.ganhoMin >= 150000;
+  if (mostraGanho) {
+    h += `<div class="ganho"><div class="valor">${faixa(pot.ganhoMin, pot.ganhoMax)}</div>
+      <p>se ${esc(m.n)} repetir o resultado de ${esc(CASOS.fonteCurta)}, <b>sem aumentar alíquota</b>.</p></div>`;
+    h += `<div class="cib">${capital ? "O CIB das capitais já está valendo." : "CIB obrigatório para os imóveis urbanos a partir de janeiro de 2027."}</div>`;
+  } else {
+    h += `<div class="ganho"><div class="valor">${capital ? "CIB: já está valendo" : "CIB: janeiro de 2027"}</div>
+      <p>Todo imóvel urbano vai precisar do CIB, o cadastro no formato da Receita Federal. O Autha-Geo deixa o cadastro pronto para o SINTER.</p></div>`;
   }
-  if (pot && pot.tipo === "casos") {
-    h += `<div class="ganho"><div class="valor">+${reais(pot.ganhoMin)} a ${reais(pot.ganhoMax)} por ano</div>
-      <p>é o que o IPTU de ${esc(m.n)} subiria repetindo o recadastramento de ${esc(CASOS.fonteCurta)}, <b>sem aumentar alíquota</b>.</p></div>`;
-    const viz = (CASOS.cadastro || []).find((c) => c.uf === "SC" && c.frase);
-    if (viz) h += `<p class="caso"><b>Caso da região:</b> ${esc(viz.municipio)} ${esc(viz.frase)}.<small>${viz.fonte_tipo === "prefeitura" ? "Prefeitura de " + esc(viz.municipio) : "fonte no relatório"}</small></p>`;
-  } else if (pot) {
-    h += `<div class="ganho"><div class="valor">+${reais(pot.ganhoMin)} por ano</div>
-      <p>se ${esc(m.n)} arrecadasse por habitante o mesmo que a mediana dos municípios de SC do mesmo porte. Cadastro atualizado é o primeiro passo, e não depende de lei nova.</p></div>`;
-  } else if (v && v.v) {
-    h += `<div class="ganho"><p>${esc(m.n)} já arrecada acima da mediana do seu porte. O ganho agora é manter o cadastro vivo: ampliação que não entra no cadastro é IPTU que deixa de crescer.</p></div>`;
-  }
-  h += `<p class="nota">${cib} O relatório completo, com o método${CASOS ? " e os casos" : ""}, vai pelo WhatsApp.<br>
-    Fontes: edificações — Overture Maps (out/2026); IPTU — Tesouro Nacional, Siconfi/DCA${v && v.a ? " " + v.a : ""}${CASOS ? "; casos — " + esc(CASOS.fonteCurta) : ""}. Estimativa para conversa, não é lançamento de imposto.</p>`;
+  h += `<p class="nota">O relatório completo, com o método e as fontes, vai pelo WhatsApp. Estimativa para conversa, não é lançamento de imposto.<br>
+    Fontes: IPTU — Tesouro Nacional, Siconfi/DCA${v && v.a ? " " + v.a : ""}${CASOS ? "; casos — prefeituras e estudos citados no relatório" : ""}.</p>`;
   return h;
 }
 
 function posicaoHoje(res) {
-  const lista = partidas().filter((p) => p.dia === res.dia && (p.nome || p.id === res.id));
-  return lista.filter((p) => p.pontos > res.pontos).length + 1;
+  const lista = partidas().filter((p) => p.dia === res.dia && (p.nome || p.id === res.id)).sort((a, b) => b.pontos - a.pontos);
+  return lista.findIndex((p) => p.id === res.id) + 1;
 }
 
 /* ---------- ficha ---------- */
 function irFicha() {
   J.estado = "ficha";
   const r = J.resultado;
-  $("#ficha-sub").innerHTML = `${esc(r.municipio)} · <b class="verde">${milhar(r.pontos)} pontos</b>. Seu nome e sua cidade aparecem no ranking da TV; o relatório <b>IPTU atual × potencial</b> chega no seu WhatsApp.`;
+  $("#ficha-sub").innerHTML = `${esc(r.municipio)} · <b class="verde">${milhar(r.pontos)} pontos</b>. O <b>Raio-X do IPTU</b> de ${esc(r.municipio)} chega no seu WhatsApp, e seu nome entra no ranking da TV.`;
   ["#f-nome", "#f-whats", "#f-trib-nome", "#f-trib-whats", "#f-eng-nome", "#f-eng-whats"].forEach((s) => ($(s).value = ""));
   $("#f-consent").checked = false;
-  $$("#f-cargo button").forEach((b) => b.classList.remove("marcado"));
+  $$("#f-cargo button, #f-interesse button").forEach((b) => b.classList.remove("marcado"));
   $$(".campo.erro, .consent.erro").forEach((e) => e.classList.remove("erro"));
   $("#ficha-erro").textContent = "";
   mostrarTela("tela-ficha");
   setTimeout(() => $("#f-nome").focus(), 30);
 }
-$("#f-cargo").innerHTML = CARGOS.map((c) => `<button type="button">${c}</button>`).join("");
-$("#f-cargo").addEventListener("click", (e) => {
-  const b = e.target.closest("button"); if (!b) return;
-  const ja = b.classList.contains("marcado");
-  $$("#f-cargo button").forEach((x) => x.classList.remove("marcado"));
-  if (!ja) b.classList.add("marcado");
-});
+function chipsUnicos(sel, opcoes) {
+  $(sel).innerHTML = opcoes.map((c) => `<button type="button">${c}</button>`).join("");
+  $(sel).addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    const ja = b.classList.contains("marcado");
+    $$(sel + " button").forEach((x) => x.classList.remove("marcado"));
+    if (!ja) b.classList.add("marcado");
+  });
+}
+chipsUnicos("#f-cargo", CARGOS);
+chipsUnicos("#f-interesse", INTERESSES);
+function normTel(s) {
+  let d = digitos(s);
+  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
+  if (d.length > 10 && d.startsWith("0")) d = d.slice(1);
+  return d;
+}
+const formatarTel = (d) => (d.length > 6 ? `(${d.slice(0, 2)}) ${d.slice(2, d.length - 4)}-${d.slice(-4)}` : d.length > 2 ? `(${d.slice(0, 2)}) ${d.slice(2)}` : d);
 function mascaraTel(el) {
   el.addEventListener("input", () => {
-    const d = digitos(el.value).slice(0, 11);
-    el.value = d.length > 6 ? `(${d.slice(0, 2)}) ${d.slice(2, d.length - 4)}-${d.slice(-4)}` : d.length > 2 ? `(${d.slice(0, 2)}) ${d.slice(2)}` : d;
+    const d = normTel(el.value);
+    if (d.length <= 11) el.value = formatarTel(d);   // com dígito a mais fica como digitou, e a validação recusa
   });
 }
 ["#f-whats", "#f-trib-whats", "#f-eng-whats"].forEach((s) => mascaraTel($(s)));
-const telefoneOk = (s) => { const d = digitos(s); return d.length === 10 || d.length === 11; };
+const telefoneOk = (s) => { const d = normTel(s); return (d.length === 10 || (d.length === 11 && d[2] === "9")) && +d.slice(0, 2) >= 11; };
 
 function salvarFicha() {
   const nome = $("#f-nome").value.trim().replace(/\s+/g, " ");
@@ -977,10 +1054,12 @@ function salvarFicha() {
   if (falta.length) { $("#ficha-erro").textContent = "Falta preencher: " + falta.join(", ") + "."; return; }
   const todas = partidas(), r = todas.find((p) => p.id === J.partidaId);
   if (!r) return;
+  J.fichaDoPainel = false;
   Object.assign(r, {
-    nome, cargo: ($("#f-cargo button.marcado") || {}).textContent || "", whatsapp: $("#f-whats").value.trim(),
-    tributosNome: $("#f-trib-nome").value.trim(), tributosWhats: $("#f-trib-whats").value.trim(),
-    engNome: $("#f-eng-nome").value.trim(), engWhats: $("#f-eng-whats").value.trim(), consentimento: true, fichaEm: new Date().toISOString(),
+    nome, cargo: ($("#f-cargo button.marcado") || {}).textContent || "", whatsapp: formatarTel(normTel($("#f-whats").value)),
+    tributosNome: $("#f-trib-nome").value.trim(), tributosWhats: $("#f-trib-whats").value.trim() && formatarTel(normTel($("#f-trib-whats").value)),
+    engNome: $("#f-eng-nome").value.trim(), engWhats: $("#f-eng-whats").value.trim() && formatarTel(normTel($("#f-eng-whats").value)), consentimento: true, fichaEm: new Date().toISOString(),
+    interesse: ($("#f-interesse button.marcado") || {}).textContent || "",
   });
   gravar(CHAVE.partidas, todas);
   J.resultado = r;
@@ -989,9 +1068,11 @@ function salvarFicha() {
 
 function irRankingFinal(r) {
   J.estado = "ranking";
+  J.rankingEm = performance.now();
   const pos = posicaoHoje(r);
   $("#final-titulo").textContent = pos === 1 ? `${r.nome.split(" ")[0]}, você está em 1º lugar!` : `${r.nome.split(" ")[0]}, você está em ${pos}º lugar!`;
-  $("#final-texto").innerHTML = `O relatório <b>IPTU atual × potencial</b> de ${esc(r.municipio)} vai para o seu WhatsApp. ${cfg.premio ? "Prêmio do dia: " + esc(cfg.premio) + "." : ""}`;
+  $("#final-texto").innerHTML = `A equipe da Autha manda o <b>Raio-X do IPTU</b> de ${esc(r.municipio)} no seu WhatsApp. ${cfg.premio ? "Prêmio do dia: " + esc(cfg.premio) + "." : ""}
+    <span class="proximo"><b>Próximo passo:</b> peça o diagnóstico do cadastro. O setor de tributos envia a planilha do cadastro imobiliário e a Autha mostra quais imóveis têm área construída diferente da imagem.</span>`;
   $("#ranking-final").innerHTML = htmlRanking(r.id, 10);
   mostrarTela("tela-ranking");
 }
@@ -1016,6 +1097,7 @@ function acao(nome) {
     if (nome === "cima") { focoCidade = Math.max(0, focoCidade - 1); marcarFocoCidade(); }
     else if (nome === "baixo") { focoCidade = Math.min(filtro.length - 1, focoCidade + 1); marcarFocoCidade(); }
     else if (nome === "confirmar" || nome === "start") escolherCidade(filtro[focoCidade]);
+    else if (nome === "esquerda" || nome === "direita") trocarLetra(nome === "direita" ? 1 : -1);
     else if (nome === "voltar") irInicio();
     return;
   }
@@ -1040,39 +1122,48 @@ function acao(nome) {
   }
   if (e === "ficha") {
     if (nome === "confirmar") salvarFicha();
-    else if (nome === "voltar") { J.estado = "fim"; mostrarTela("tela-fim"); }
+    else if (nome === "voltar") voltarDaFicha();
     return;
   }
-  if (e === "ranking") { if (["confirmar", "start", "voltar"].includes(nome)) irInicio(); }
+  if (e === "ranking") { if (performance.now() - J.rankingEm > 1500 && ["confirmar", "start", "voltar"].includes(nome)) irInicio(); }
 }
+function voltarDaFicha() { if (J.fichaDoPainel) { J.fichaDoPainel = false; irInicio(); } else { J.estado = "fim"; mostrarTela("tela-fim"); } }
 function sairDoVoo() { $("#pausa").classList.remove("ativo"); J.estado = "inicio"; irInicio(); }
 
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-acao]");
   if (!b) return;
+  if (J.estado === "fim" && performance.now() - J.fimEm < 1500) return;
+  if (J.estado === "ranking" && performance.now() - J.rankingEm < 1500) return;
   Som.clique();
   const a = b.dataset.acao;
   ({
     continuar: () => pausar(false), sair: sairDoVoo, ficha: irFicha, "de-novo": () => comecarVoo(J.C), "outra-cidade": irCidade,
-    "salvar-ficha": salvarFicha, "voltar-fim": () => { J.estado = "fim"; mostrarTela("tela-fim"); }, inicio: irInicio,
+    "salvar-ficha": salvarFicha, "voltar-fim": voltarDaFicha, inicio: irInicio,
   })[a]?.();
 });
 $("#tela-inicio").addEventListener("click", () => { if (J.estado === "inicio") acao("confirmar"); });
 
 function verificarInatividade() {
   const parado = (performance.now() - ultimaAtividade) / 1000;
-  if (["fim", "ficha", "ranking", "cidade"].includes(J.estado) && parado > cfg.voltarInicio * (J.estado === "ficha" ? 3 : 1)) { atividade(); irInicio(); }
+  const limite = { fim: 300, ficha: 300, cidade: cfg.voltarInicio, ranking: Math.min(30, cfg.voltarInicio) }[J.estado];
+  if (limite && parado > limite) { atividade(); irInicio(); }
   if (J.estado === "pausa" && parado > cfg.voltarInicio * 2) { atividade(); sairDoVoo(); }
 }
 
 /* ============================== área da equipe ============================== */
-$("#btn-equipe").addEventListener("click", abrirEquipe);
+let seguraEquipe = 0;
+$("#btn-equipe").addEventListener("pointerdown", (e) => { e.stopPropagation(); clearTimeout(seguraEquipe); seguraEquipe = setTimeout(abrirEquipe, 1000); });
+["pointerup", "pointerleave", "pointercancel"].forEach((ev) => $("#btn-equipe").addEventListener(ev, () => clearTimeout(seguraEquipe)));
 function abrirEquipe() {
+  const pr = $("#eq-premio");   // 11. o prêmio digitado não se perde quando o painel é redesenhado
+  if (pr && $("#equipe").classList.contains("ativo")) { cfg.premio = pr.value.trim(); gravar(CHAVE.config, cfg); }
   if (J.estado === "voo") pausar(true);
   const todas = partidas(), deHoje = todas.filter((p) => p.dia === hoje()), fichas = todas.filter((p) => p.nome);
   const conta = (l, f) => l.filter(f).length;
   const dur = [30, 45, 60, 90].map((s) => `<button class="btn ${cfg.duracao === s ? "marcado" : ""}" data-dur="${s}">${s} s</button>`).join("");
   const ult = fichas.slice(-40).reverse();
+  const semFicha = deHoje.filter((p) => !p.nome).slice(-6).reverse();
   $("#equipe-caixa").innerHTML = `
     <h2>Área da equipe</h2>
     <div class="numeros">
@@ -1092,6 +1183,8 @@ function abrirEquipe() {
       <button class="btn" data-eq="limpar">Apagar o ranking de hoje…</button>
       <button class="btn" data-eq="fechar">Fechar (Esc)</button>
     </div>
+    <p class="dica-equipe">Antes de salvar a ficha, peça também o contato do setor de tributos e do engenheiro da prefeitura.</p>
+    ${semFicha.length ? `<h3>Voos de hoje sem ficha — o prefeito saiu sem preencher? Abra a ficha do voo dele</h3><div class="linha">${semFicha.map((p) => `<button class="btn" data-ficha="${esc(p.id)}">${esc(p.municipio)} · ${new Date(p.quando).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · ${milhar(p.pontos)} pts</button>`).join("")}</div>` : ""}
     <h3>Últimas fichas — clique em “Relatório” para abrir, imprimir em PDF e mandar no WhatsApp</h3>
     ${ult.length ? `<table><tr><th>Quando</th><th>Nome</th><th>Cargo</th><th>Município</th><th>WhatsApp</th><th>Pontos</th><th></th></tr>${ult.map((p) => `<tr><td>${new Date(p.quando).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</td><td>${esc(p.nome)}</td><td>${esc(p.cargo)}</td><td>${esc(p.municipio)}</td><td>${esc(p.whatsapp)}</td><td>${milhar(p.pontos)}</td><td><a href="relatorio.html?c=${p.municipioCod}&n=${encodeURIComponent(p.nome)}&cargo=${encodeURIComponent(p.cargo || "")}" target="_blank">Relatório</a></td></tr>`).join("")}</table>` : `<p class="cinza">Nenhuma ficha ainda.</p>`}`;
   $("#equipe").classList.add("ativo");
@@ -1105,6 +1198,12 @@ function fecharEquipe() {
 $("#equipe").addEventListener("click", (e) => {
   if (e.target.id === "equipe") return fecharEquipe();
   const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.ficha) {
+    const r = partidas().find((p) => p.id === b.dataset.ficha);
+    if (["voo", "pausa", "contagem", "pouso"].includes(J.estado)) { alert("Termine (ou saia do) voo atual antes de abrir a ficha de outro voo."); return; }
+    if (r) { $("#equipe").classList.remove("ativo"); J.resultado = r; J.partidaId = r.id; J.fichaDoPainel = true; irFicha(); }
+    return;
+  }
   if (b.dataset.dur) { cfg.duracao = +b.dataset.dur; gravar(CHAVE.config, cfg); abrirEquipe(); }
   else if (b.dataset.som) { cfg.som = b.dataset.som === "1"; gravar(CHAVE.config, cfg); Som.garantir(); abrirEquipe(); atualizarAvisoSom(); }
   else if (b.dataset.eq === "csv") baixarCSV();
@@ -1121,9 +1220,9 @@ $("#equipe").addEventListener("click", (e) => {
 function baixarCSV() {
   const cols = [["quando", "Data e hora"], ["municipio", "Município"], ["municipioCod", "Código IBGE"], ["nome", "Nome"], ["cargo", "Cargo"], ["whatsapp", "WhatsApp"],
     ["tributosNome", "Tributos - nome"], ["tributosWhats", "Tributos - WhatsApp"], ["engNome", "Engenheiro - nome"], ["engWhats", "Engenheiro - WhatsApp"],
-    ["pontos", "Pontos"], ["imoveis", "Imóveis cadastrados"], ["pct", "% da área de voo"], ["dourados", "Áreas fora do cadastro"], ["duracao", "Duração (s)"], ["consentimento", "Autorizou contato"]];
+    ["pontos", "Pontos"], ["imoveis", "Imóveis cadastrados"], ["pct", "% da área de voo"], ["dourados", "Casas douradas (bônus do jogo)"], ["interesse", "Quer conversar?"], ["duracao", "Duração (s)"], ["consentimento", "Autorizou contato"]];
   const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const linhas = [cols.map((c) => q(c[1])).join(";")].concat(partidas().map((p) => cols.map(([k]) => q(k === "quando" ? new Date(p[k]).toLocaleString("pt-BR") : k === "consentimento" ? (p[k] ? "sim" : "") : p[k])).join(";")));
+  const linhas = [cols.map((c) => q(c[1])).join(";")].concat(partidas().map((p) => cols.map(([k]) => q(k === "quando" ? new Date(p[k]).toLocaleString("pt-BR") : k === "consentimento" ? (p[k] ? "sim" : "") : typeof p[k] === "number" ? p[k].toLocaleString("pt-BR", { useGrouping: false }) : p[k])).join(";")));
   const blob = new Blob(["﻿" + linhas.join("\r\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = `voo-cadastral_fichas_${hoje()}.csv`; a.click();

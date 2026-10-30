@@ -267,6 +267,7 @@ def resumir(d):
 
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
     nomes = sys.argv[3:] or list(PERFIS)
     resumo = []
     with sync_playwright() as p:

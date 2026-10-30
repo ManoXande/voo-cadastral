@@ -127,7 +127,7 @@ function montar() {
           <div class="barra-comp med"><i style="width:${(V.peMed / maxPe) * 100}%"></i></div><small>mediana do porte: <b>${reaisCheio(V.peMed)}</b></small></div>
       </div>
       <p>${V.pc < V.pcMed
-        ? `Se ${esc(M.n)} chegasse à mediana do porte por habitante, seriam <b>${reais((V.pcMed - V.pc) * M.pop)} a mais por ano</b>. A diferença pode vir de cadastro desatualizado, de planta de valores antiga ou de inadimplência; o recadastramento ataca a primeira, que não depende de lei nova.`
+        ? `${esc(M.n)} arrecada por habitante menos que a mediana do porte. A diferença pode vir de cadastro desatualizado, de planta de valores antiga ou de inadimplência; o recadastramento ataca a primeira, que não depende de lei nova.`
         : `${esc(M.n)} já arrecada acima da mediana do porte. O ganho, aqui, é manter o cadastro vivo: cada ampliação, piscina ou edificação nova que não entra no cadastro é IPTU que deixa de crescer.`}</p>`;
   }
 
@@ -135,8 +135,8 @@ function montar() {
     const pct = (x) => Number(x).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
     const fonte = (c) => `<a href="${esc(c.fonte_url)}">${esc(c.fonte_titulo || c.fonte_url)}</a>`;
     h += `<h2><span class="n">2</span>O que municípios que recadastraram conseguiram</h2>
-      <div class="destaque"><div class="valor">+${reais(V.v * CASOS.min / 100)} a +${reais(V.v * CASOS.max / 100)} por ano</div>
-      <p>é o que o IPTU de ${esc(M.n)} subiria repetindo os casos de ${esc(CASOS.fonteCurta)}: recadastramento <b>sem nova planta de valores e sem aumentar alíquota</b>, só levando para o cadastro o que já está construído.</p></div>
+      <div class="destaque"><div class="valor">+${CASOS.max > CASOS.min ? reais(V.v * CASOS.min / 100) + " a +" + reais(V.v * CASOS.max / 100) : reais(V.v * CASOS.min / 100)} por ano</div>
+      <p>é o que o IPTU de ${esc(M.n)} subiria repetindo o resultado de ${esc(CASOS.fonteCurta)}, <b>sem aumentar alíquota</b>: só levando para o cadastro o que já está construído.</p></div>
       <p><b>Receita de IPTU, antes × depois</b></p>
       <table><tr><th>Município</th><th>O que mudou</th><th>Aumento</th><th>Fonte</th></tr>
       ${CASOS.casos.map((c) => `<tr><td><b>${esc(c.municipio)}/${esc(c.uf)}</b><br>${esc(c.ano || "")}</td><td>${esc(c.o_que_mede)}: ${esc(c.antes)} → ${esc(c.depois)}</td><td><b>+${pct(c.aumento_pct)}%</b></td><td>${fonte(c)}</td></tr>`).join("")}
@@ -155,6 +155,7 @@ function montar() {
       <li><b>Autha-Geo</b>: o cadastro no mapa, com a ficha de cada imóvel, certidões e consulta prévia em 3 cliques.</li>
       <li><b>CIB/SINTER</b>: o cadastro organizado no formato da Receita Federal. ${capital ? "O CIB das capitais já está valendo." : "O CIB é obrigatório para os imóveis urbanos dos municípios a partir de janeiro de 2027."}</li>
     </ol>
+    <div class="destaque" style="margin-top:6mm"><b>Próximo passo: peça o diagnóstico do seu cadastro.</b><p>O setor de tributos envia a planilha do cadastro imobiliário e a Autha mostra quais imóveis têm área construída diferente da imagem de satélite e do voo de drone.</p></div>
     <p class="nota" style="margin-top:6mm">Fontes: edificações — Overture Maps Foundation, release 2026-10-21.0 (inclui Google Open Buildings, Microsoft e OpenStreetMap), cruzadas com os setores censitários do IBGE 2022; população — IBGE, Censo 2022; IPTU — Tesouro Nacional, Siconfi, Declaração de Contas Anuais (Anexo I-C, conta 1.1.1.2.50, receita líquida)${CASOS ? "; casos de recadastramento — fontes indicadas na tabela" : ""}.
     Prédio com vários apartamentos conta como 1 edificação; galpões e aviários entram na contagem. Este relatório é uma estimativa para conversa e não é lançamento de imposto: o potencial real depende do cadastro, da planta de valores e da legislação de cada município.</p>
     <div class="rodape"><span><b>Autha-Geo</b> · gestão territorial simplificada</span><span><b>(49) 99971-9388</b> · authamapeamento@gmail.com · autha.eng.br</span></div>

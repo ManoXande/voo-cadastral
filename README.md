@@ -13,14 +13,16 @@ Jogo de estande para a COMAC-SC 2026: o prefeito pilota um drone sobre a **próp
 | Turbo | A, RB ou RT | Espaço | botão TURBO |
 | Pausa | Start | Esc ou P | — |
 
-**Área da equipe:** ⚙ no canto inferior esquerdo ou `Ctrl+E`. Lá estão a duração do voo (30/45/60/90 s), o prêmio do dia, o som, a planilha de fichas (CSV para o Excel) e o link do relatório de cada ficha (abre o relatório; “Salvar em PDF” e manda no WhatsApp).
+**Área da equipe:** segure o ⚙ do canto inferior esquerdo por 1 segundo (ou `Ctrl+E`). Lá estão a duração do voo (30/45/60/90 s), o prêmio do dia, o som, a planilha de fichas (CSV para o Excel) e o link do relatório de cada ficha (abre o relatório; “Salvar em PDF” e manda no WhatsApp).
 
 As fichas e o ranking ficam no navegador do notebook (localStorage). **Baixe a planilha no fim de cada dia.**
 
 ## Regras do jogo
-- Bateria de 60 s. Cada marco de área cadastrada (10%, 20%, 35%, 50%, 70% e 90%) dá +3 s.
+- Bateria de 60 s. Cada marco de área cadastrada (5% a 90%) e o item bateria dão tempo extra, até no máximo +15 s (a fila anda).
+- Cidade 100% cadastrada encerra o voo na hora, com bônus pelo tempo que sobrou. 15 s sem comando encerram o voo.
+- Só com o controle, na escolha da cidade: ← → troca a letra inicial, ↑ ↓ anda na lista.
 - Combo: cadastrar sem parar sobe o multiplicador até ×4.
-- Casa dourada = “área fora do cadastro”: bônus grande.
+- Casa dourada: bônus do jogo (sorteada; não é um achado real).
 - Itens: bateria (+5 s) e sinal FIX (laser dobrado por 6 s). Urubu tira 2 s.
 - A pontuação é proporcional à fração da cidade cadastrada, então cidade pequena e cidade grande disputam de igual para igual.
 

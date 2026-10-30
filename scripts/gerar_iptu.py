@@ -45,6 +45,7 @@ for r in df.itertuples():
 
 casos = None
 arq = D / "casos_recadastramento.json"
+ROTULO = {"Criciúma": "Criciúma/SC, que corrigiu o cadastro de um bairro (+16% no IPTU lançado)"}
 CAMPOS = ("municipio", "uf", "populacao_aprox", "ano", "o_que_mede", "antes", "depois", "aumento_pct", "como_fizeram", "fonte_titulo", "fonte_url", "fonte_tipo")
 if arq.exists():
     j = json.loads(arq.read_text(encoding="utf-8"))
@@ -63,7 +64,7 @@ if arq.exists():
         topo = pcts[-1] if len(pcts) <= 3 else statistics.median(pcts)   # com poucos casos, o maior; com muitos, a mediana
         casos = {
             "min": round(pcts[0]), "max": round(topo), "n": len(pcts),
-            "fonteCurta": " e ".join(f"{c['municipio']}/{c['uf']} (+{round(c['aumento_pct'])}%)" for c in sorted(limpos, key=lambda c: c["aumento_pct"])),
+            "fonteCurta": " e ".join(ROTULO.get(c["municipio"], f"{c['municipio']}/{c['uf']} (+{round(c['aumento_pct'])}%)") for c in sorted(limpos, key=lambda c: c["aumento_pct"])),
             "casos": [{k: c.get(k) for k in CAMPOS} for c in limpos],
             "cadastro": [{k: c.get(k) for k in CAMPOS + ("frase",)} for c in cadastro],
             "estudos": [{"trecho": e.get("trecho"), "fonte": f"{e.get('fonte')}, {e.get('ano')}", "titulo": e.get("titulo"), "fonte_url": e.get("fonte_url")}
