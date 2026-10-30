@@ -100,14 +100,29 @@ const Som = (() => {
 })();
 
 /* ============================== entrada: gamepad, teclado, toque ============================== */
-const Ent = { teclas: new Set(), joy: null, turboToque: false, pad: { x: 0, y: 0, turbo: false }, padAnt: [], navAnt: { x: 0, y: 0 }, tipo: "teclado" };
+const Ent = { teclas: new Set(), joy: null, turboToque: false, pad: { x: 0, y: 0, turbo: false }, padAnt: [], navAnt: { x: 0, y: 0 }, tipo: "teclado", ps: false };
 let ultimaAtividade = performance.now();
 const atividade = () => { ultimaAtividade = performance.now(); };
+
+// controle de PlayStation: mesmas posições do Xbox (0 = baixo, 1 = direita, 2 = esquerda, 3 = cima), outros símbolos
+const SIMBOLO_PS = { A: "✕", B: "◯", X: "□", Y: "△" };
+const bt = (letra) => (Ent.ps ? SIMBOLO_PS[letra] : letra);
+function rotularBotoes() {
+  for (const el of $$(".tecla")) {
+    const orig = el.dataset.xbox || el.textContent.trim();
+    if (!SIMBOLO_PS[orig]) continue;
+    el.dataset.xbox = orig;
+    el.textContent = bt(orig);
+  }
+  atualizarCTA();
+}
 
 function lerPad() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   let p = null;
   for (const g of pads) if (g && g.connected) { p = g; break; }
+  const ps = !!p && /054c|dualsense|dualshock|playstation/i.test(p.id);
+  if (ps !== Ent.ps) { Ent.ps = ps; rotularBotoes(); }
   if (!p) { Ent.pad.x = Ent.pad.y = 0; Ent.pad.turbo = false; return; }
   const b = (i) => !!(p.buttons[i] && p.buttons[i].pressed);
   let x = p.axes[0] || 0, y = p.axes[1] || 0;
@@ -869,7 +884,7 @@ async function irInicio() {
   try { const C = await abrirCidade(cod); if (J.estado === "inicio") prepararPartida(C, true); } catch { /* sem mapa, sem demo */ }
 }
 function atualizarCTA() {
-  const t = Ent.tipo === "pad" ? "Aperte A para começar" : document.body.classList.contains("toque") ? "Toque na tela para começar" : "Aperte Enter (ou A no controle) para começar";
+  const t = Ent.tipo === "pad" ? `Aperte ${bt("A")} para começar` : document.body.classList.contains("toque") ? "Toque na tela para começar" : `Aperte Enter (ou ${bt("A")} no controle) para começar`;
   $("#cta-inicio").textContent = t;
 }
 function atualizarAvisoSom() { $("#som-aviso").classList.toggle("oculto", !cfg.som || Som.ativo()); }
@@ -935,7 +950,7 @@ function comecarVoo(C) {
   hudCache = {};
   $("#hud-cidade").textContent = C.nome;
   $("#hud-msg").classList.remove("on");
-  const ajuda = { pad: "Analógico move o drone · segure A para turbo", toque: "Arraste o dedo para pilotar · segure TURBO", teclado: "Setas ou WASD movem o drone · Espaço = turbo", mouse: "Clique e arraste para pilotar · Espaço = turbo" };
+  const ajuda = { pad: `Analógico move o drone · segure ${bt("A")} para turbo`, toque: "Arraste o dedo para pilotar · segure TURBO", teclado: "Setas ou WASD movem o drone · Espaço = turbo", mouse: "Clique e arraste para pilotar · Espaço = turbo" };
   $("#hud-ajuda").textContent = (ajuda[Ent.tipo] || ajuda.teclado) + " · fuja dos urubus, pegue as casas douradas!";
   $("#hud-ajuda").classList.remove("some");
   $("#contagem").textContent = "3";
