@@ -408,7 +408,7 @@ function quadro(t) {
       else if (J.estado === "pouso") atualizarPouso(dt);
       else if (J.demo && J.C && J.estado === "inicio") atualizarDemo(dt);
     }
-    if (J.C) desenhar(t / 1000);
+    if (J.C && (ESTADOS_ANIMADOS.has(J.estado) || redesenhar)) { desenhar(t / 1000); redesenhar = false; }
     verificarInatividade();
   } catch (e) { console.error(e); }
 }
@@ -647,10 +647,15 @@ function atualizarParticulas(dt) {
 /* ============================== desenho ============================== */
 const ctx = canvas.getContext("2d");
 let W = 0, H = 0, DPR = 1;
+// nas telas de vidro (cidade, resultado, ficha, ranking, pausa) o mapa ao fundo fica parado: desenha uma vez só,
+// senão o desfoque de tela inteira recalcula a cada quadro e o menu cai para 30 fps
+const ESTADOS_ANIMADOS = new Set(["inicio", "contagem", "voo", "pouso"]);
+let redesenhar = true;
 function redimensionar() {
   DPR = Math.min(2, window.devicePixelRatio || 1);
   W = Math.round(innerWidth * DPR); H = Math.round(innerHeight * DPR);
   canvas.width = W; canvas.height = H;
+  redesenhar = true;
 }
 addEventListener("resize", redimensionar);
 redimensionar();
@@ -818,12 +823,14 @@ function bairroAtual() {
   return "";
 }
 // partes da tela cobertas pelo HUD e pelos textos: nome de bairro não vai embaixo delas
-const SEL_ZONAS = "#hud.ativo .hud-bloco, #hud.ativo #minimapa, #hud.ativo .hud-baixo, #hud-ajuda:not(.some), #abertura.on > div, .tela.ativa .inicio-meio > *, .tela.ativa .inicio-topo";
+const SEL_ZONAS = "#hud.ativo .hud-bloco, #hud-msg.on > div:not(:empty), #hud.ativo #minimapa, #hud.ativo .hud-baixo, #hud-ajuda:not(.some), #abertura.on > div, .tela.ativa .inicio-meio > *, .tela.ativa .inicio-topo";
 let zonasCache = [], zonasT = 0;
 function zonasDoHud() {
   if (performance.now() - zonasT < 250) return zonasCache;
   zonasT = performance.now();
-  zonasCache = [...document.querySelectorAll(SEL_ZONAS)].map((el) => el.getBoundingClientRect()).filter((r) => r.width > 0)
+  const els = [...document.querySelectorAll(SEL_ZONAS)];
+  if ($("#hud").classList.contains("ativo") && getComputedStyle($(".hud-esq")).display === "contents") els.push($(".hud-topo"));   // celular: painel único
+  zonasCache = els.map((el) => el.getBoundingClientRect()).filter((r) => r.width > 0)
     .map((r) => ({ x: (r.left + r.width / 2) * DPR, y: (r.top + r.height / 2) * DPR, w: r.width * DPR, h: r.height * DPR }));
   return zonasCache;
 }
@@ -940,7 +947,7 @@ function atualizarHUD() {
   setTxt("#hud-imoveis", milhar(J.cadastrados));
   setTxt("#hud-pontos", milhar(J.pontos));
   setTxt("#hud-tempo", Math.ceil(J.tempo));
-  setTxt("#hud-pct", `${Math.round(p * 100)}% da área de voo`);
+  setTxt("#hud-pct", `${Math.round(p * 100)}%`);
   $("#hud-pct-barra").style.width = Math.min(100, p * 100) + "%";
   $("#hud-bateria-barra").style.width = clamp((J.tempo / cfg.duracao) * 100, 0, 100) + "%";
   $("#hud-bateria").classList.toggle("baixa", J.tempo <= 10);
@@ -984,6 +991,7 @@ function potencial(cod) {
 function mostrarTela(id) {
   $$(".tela").forEach((t) => t.classList.toggle("ativa", t.id === id));
   $("#hud").classList.toggle("ativo", id === "hud");
+  redesenhar = true;
   document.body.classList.toggle("em-voo", id === "hud");
   focarPrimeiro();
 }
@@ -1124,7 +1132,7 @@ function mostrarFim() {
   J.resultado = res; J.partidaId = res.id; J.fimEm = performance.now();
   const pos = posicaoHoje(res);
   $("#fim-titulo").textContent = p >= 0.5 ? "Cidade cadastrada!" : "Missão cumprida!";
-  $("#fim-resumo").innerHTML = `Você cadastrou <b class="verde">${milhar(J.cadastrados)} imóveis</b> de <b>${esc(C.nome)}</b> em ${Math.round(J.decorrido)} segundos de voo.`;
+  $("#fim-resumo").innerHTML = `Você cadastrou <b class="verde">${milhar(J.cadastrados)} imóveis</b> de <b>${esc(C.nome)}</b> em ${Math.round(J.decorrido)} ${Math.round(J.decorrido) === 1 ? "segundo" : "segundos"} de voo.`;
   $("#fim-piada").textContent = "No jogo, eles já estão prontos para o CIB. Na vida real, a Autha faz isso com drone, laser e o sistema Autha-Geo.";
   $("#fim-placar").innerHTML = [
     [milhar(res.pontos), "pontos"],

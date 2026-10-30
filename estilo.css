@@ -132,28 +132,32 @@ h1, h2, h3, .hud-num, .btn, .placar b, .valor { font-family: var(--display); }
 #hud { position: fixed; inset: 0; pointer-events: none; display: none; }
 #hud.ativo { display: block; }
 .hud-topo { position: absolute; top: calc(var(--u) * .8); left: calc(var(--u) * .8); right: calc(var(--u) * .8);
-  display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--u); align-items: start; }
-.hud-bloco { background: rgba(3, 7, 18, .74); border: 1px solid var(--linha); border-radius: 16px; padding: .55em .9em; backdrop-filter: blur(6px); }
-.hud-marca { display: flex; align-items: center; gap: .5em; font-size: max(11px, calc(var(--u) * .72)); letter-spacing: .14em; text-transform: uppercase; color: var(--cinza); font-weight: 600; margin-bottom: .25em; }
-.hud-marca img { height: 1.9em; }
+  display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--u); align-items: stretch; }
+.hud-bloco { background: rgba(3, 7, 18, .74); border: 1px solid var(--linha); border-radius: 16px; padding: .6em 1em .7em; backdrop-filter: blur(6px); }
+/* os dois cartões laterais têm a mesma largura e a mesma altura; a bateria fica no meio */
+.hud-esq, .hud-dir { display: flex; flex-direction: column; width: calc(var(--u) * 16); }
 .hud-rot { font-size: max(11px, calc(var(--u) * .86)); color: var(--cinza); text-transform: uppercase; letter-spacing: .12em; font-weight: 600; }
 .hud-num { font-size: calc(var(--u) * 2.1); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.05; letter-spacing: -.02em; }
-#hud-cidade { font-family: var(--display); font-size: calc(var(--u) * 1.3); font-weight: 700; letter-spacing: -.02em; }
+#hud-cidade { font-family: var(--display); font-size: calc(var(--u) * 1.4); font-weight: 700; letter-spacing: -.02em; line-height: 1.12; }
+.rot-imoveis { margin-top: .55em; }
 .hud-esq { justify-self: start; box-shadow: inset 2px 0 0 var(--verde); }
-.hud-dir { justify-self: end; text-align: right; }
-.bateria { justify-self: center; min-width: calc(var(--u) * 16); text-align: center; }
+.hud-dir { justify-self: end; align-items: flex-end; text-align: right; position: relative; }
+.bateria { justify-self: center; align-self: start; min-width: calc(var(--u) * 16); text-align: center; }
 .bateria .hud-num { font-size: calc(var(--u) * 3.1); }
+#hud-pontos { font-size: calc(var(--u) * 2.6); }
 .barra { height: calc(var(--u) * .6); border-radius: 99px; background: rgba(148,163,184,.16); overflow: hidden; margin-top: .35em; }
 .barra i { display: block; height: 100%; width: 100%; background: var(--grad); border-radius: 99px; transition: width .2s linear; box-shadow: 0 0 12px rgba(74,222,128,.5); }
 .bateria.baixa .barra i { background: var(--erro); box-shadow: 0 0 12px rgba(248,113,113,.6); }
 .bateria.baixa .hud-num { color: var(--erro); animation: piscar .5s infinite; }
 @keyframes piscar { 50% { opacity: .45; } }
-#hud-combo { margin-top: .35em; font-family: var(--display); font-size: calc(var(--u) * 1.45); font-weight: 700; color: var(--ouro); opacity: 0; transition: opacity .2s;
-  text-shadow: 0 0 16px rgba(251,191,36,.5); }
-#hud-combo.on { opacity: 1; }
+/* o combo fica sempre à vista (×1 apagado) para o jogador saber que ele existe */
+#hud-combo { margin-top: auto; padding-top: .3em; font-family: var(--display); font-size: calc(var(--u) * 1.3); font-weight: 700; color: var(--cinza2);
+  transition: color .2s, text-shadow .2s; }
+#hud-combo.on { color: var(--ouro); text-shadow: 0 0 16px rgba(251,191,36,.5); }
 #hud-combo.pop { animation: pop .45s ease-out; }
 @keyframes pop { 0% { transform: scale(1.6); } 100% { transform: scale(1); } }
-#hud-bonus { margin-top: .25em; font-family: var(--display); font-weight: 700; font-size: calc(var(--u) * 1.05); color: var(--ouro); opacity: 0; transition: opacity .25s; }
+#hud-bonus { position: absolute; right: 0; top: calc(100% + .45em); white-space: nowrap; font-family: var(--display); font-weight: 700; font-size: calc(var(--u) * 1.05);
+  color: var(--ouro); opacity: 0; transition: opacity .25s; text-shadow: 0 2px 8px #030712, 0 0 2px #030712; }
 #hud-bonus.on { opacity: 1; }
 .hud-baixo { position: absolute; left: calc(var(--u) * 3.6); bottom: calc(var(--u) * .8); }
 #hud-coord { font-family: Consolas, "Cascadia Mono", monospace; font-size: max(11px, calc(var(--u) * .78)); color: var(--cinza); background: rgba(3,7,18,.65);
@@ -302,20 +306,12 @@ body.em-voo #btn-equipe { display: none; }
   .inicio-meio, .fim, .grade-ficha { grid-template-columns: 1fr; }
   .titulo-jogo { font-size: calc(var(--u) * 4.4); }
   .marca img { height: calc(var(--u) * 2); }
-  .hud-topo { grid-template-columns: 1fr 1fr; }
-  .bateria { grid-column: 1 / -1; grid-row: 1; justify-self: stretch; min-width: 0; }
-  .hud-num { font-size: calc(var(--u) * 1.7); }
-  .hud-marca { display: none; }
-  #minimapa { width: calc(var(--u) * 8); height: calc(var(--u) * 8); }
-  #hud-coord { display: none; }
-  #hud-ajuda { white-space: normal; text-align: center; width: 90vw; bottom: calc(var(--u) * 13 + 110px); }
-  .hud-logo { display: none; }
-  #hud-msg { top: 44%; }
+  #hud-ajuda { white-space: normal; text-align: center; width: 90vw; bottom: calc(var(--u) * 13 + 110px); font-size: calc(var(--u) * .95); }
+  #hud-msg { top: 27%; }
   #abertura { top: 33%; }
   #abertura .a2 { font-size: calc(var(--u) * 3.4); }
   #abertura .a3 { font-size: calc(var(--u) * .95); }
-  #hud-msg .m1 { font-size: calc(var(--u) * 2); }
-  #hud-msg .m2 { font-size: calc(var(--u) * 1.1); }
+  .lista-cidades li { flex-direction: column; align-items: flex-start; justify-content: center; gap: .1em; }
   .bloco { grid-template-columns: 1fr; }
   .numeros { grid-template-columns: repeat(2, 1fr); }
   .som-aviso { display: none; }
@@ -329,4 +325,53 @@ body.em-voo #btn-equipe { display: none; }
   .fim > .botoes, .ficha .botoes { position: sticky; bottom: calc(var(--u) * -2); margin: 0 calc(var(--u) * -2) calc(var(--u) * -2); padding: var(--u) calc(var(--u) * 2) calc(var(--u) * 1.6);
     background: linear-gradient(0deg, rgba(3,7,18,.98) 70%, rgba(3,7,18,0)); justify-content: center; z-index: 2; }
   .fim > .botoes .btn-pri, .ficha .botoes .btn-pri { width: 100%; justify-content: center; }
+}
+
+/* ---------- HUD compacto: no celular (em pé ou deitado) os 3 cartões viram um painel só no topo ---------- */
+@media (max-aspect-ratio: 1/1), (max-width: 760px), (max-height: 520px) {
+  .hud-topo { top: max(8px, env(safe-area-inset-top)); left: 8px; right: 8px; gap: 1px 12px; align-items: center;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-areas: "cidade tempo pontos" "bairro bbar rotp" "imov imov combo" "pbar pbar combo";
+    background: rgba(3, 7, 18, .8); border: 1px solid var(--linha); border-radius: 16px; padding: 8px 12px 10px;
+    backdrop-filter: blur(6px); box-shadow: inset 2px 0 0 var(--verde); }
+  .hud-esq, .bateria, .hud-dir { display: contents; }
+  .rot-imoveis, .rot-bateria, .so-largo, .hud-baixo { display: none; }
+  #hud-cidade { grid-area: cidade; font-size: calc(var(--u) * 1.15); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #hud-bairro { grid-area: bairro; margin: 0; font-size: max(11px, calc(var(--u) * .8)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #hud-imoveis { grid-area: imov; justify-self: start; margin-top: 4px; font-size: calc(var(--u) * 1.15); }
+  #hud-imoveis::after { content: " imóveis"; font-family: var(--texto); font-size: .7em; font-weight: 600; color: var(--cinza); letter-spacing: 0; }
+  .barra-pct { grid-area: pbar; height: 5px; margin-top: 3px; }
+  .rot-pct { grid-area: imov; justify-self: end; align-self: end; color: var(--verde); }
+  #hud-tempo { grid-area: tempo; font-size: calc(var(--u) * 2.5); line-height: 1; text-align: center; }
+  .barra-bat { grid-area: bbar; width: calc(var(--u) * 4.5); height: 5px; justify-self: center; margin: 2px 0 0; }
+  #hud-pontos { grid-area: pontos; justify-self: end; font-size: calc(var(--u) * 1.15); }
+  .rot-pontos { grid-area: rotp; justify-self: end; }
+  #hud-combo { grid-area: combo; justify-self: end; align-self: end; margin: 0; padding: 0; font-size: calc(var(--u) * 1); }
+  #hud-bonus { right: 4px; top: calc(100% + 6px); font-size: calc(var(--u) * .95); }
+  #minimapa { width: calc(var(--u) * 7.5); height: calc(var(--u) * 7.5); border-radius: 12px; }
+  #hud-msg .m1 { font-size: calc(var(--u) * 2); }
+  #hud-msg .m2 { font-size: calc(var(--u) * 1.05); }
+}
+
+/* ---------- celular deitado (tela baixa): tudo menor, botão principal sempre à vista ---------- */
+@media (max-height: 520px) and (min-aspect-ratio: 1/1) {
+  :root { --u: clamp(9.5px, 2.2vh + .25vw, 14px); }
+  .tela { padding: calc(var(--u) * 1.2) calc(var(--u) * 1.8); }
+  .hud-topo { right: auto; width: min(440px, 56vw); }
+  #hud-msg { top: 33%; }
+  #abertura { top: 31%; }
+  #abertura .a2 { font-size: calc(var(--u) * 3.6); }
+  #contagem { font-size: calc(var(--u) * 7); }
+  #hud-ajuda { bottom: 8px; font-size: calc(var(--u) * .95); white-space: normal; max-width: 60vw; text-align: center; }
+  #btn-turbo { width: 72px; height: 72px; right: 12px; bottom: calc(var(--u) * 7.5 + 22px); font-size: 13px; }
+  .titulo-jogo { font-size: calc(var(--u) * 4.6); }
+  .fim h1 { font-size: calc(var(--u) * 2.6); }
+  .som-aviso { display: none; }
+  #btn-equipe { left: auto; right: 10px; top: 10px; bottom: auto; }
+  #tela-cidade { padding-top: 3vh; }
+  .btn { min-height: 44px; }
+  .chips button { min-height: 40px; }
+  .campo input { min-height: 44px; font-size: 16px; }
+  .fim > .botoes, .ficha .botoes { position: sticky; bottom: calc(var(--u) * -1.2); margin: 0 calc(var(--u) * -1.8) calc(var(--u) * -1.2);
+    padding: calc(var(--u) * .8) calc(var(--u) * 1.8) var(--u); background: linear-gradient(0deg, rgba(3,7,18,.98) 70%, rgba(3,7,18,0)); z-index: 2; }
 }

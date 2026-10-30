@@ -43,24 +43,24 @@
 <!-- 3. HUD do voo -->
 <div id="hud">
   <div class="hud-topo">
+    <!-- na TV são 3 cartões; no celular viram um painel só (ver "HUD compacto" no estilo.css) -->
     <div class="hud-bloco hud-esq">
-      <div class="hud-marca"><img src="marca/authageo-branco.png" alt="Autha-Geo"><span>voo cadastral</span></div>
       <div id="hud-cidade">—</div>
       <div id="hud-bairro"></div>
-      <div class="hud-rot">imóveis cadastrados</div>
+      <div class="hud-rot rot-imoveis">imóveis cadastrados</div>
       <div class="hud-num verde" id="hud-imoveis">0</div>
-      <div class="barra"><i id="hud-pct-barra" style="width:0%"></i></div>
-      <div class="hud-rot" id="hud-pct">0% da área de voo</div>
+      <div class="barra barra-pct"><i id="hud-pct-barra" style="width:0%"></i></div>
+      <div class="hud-rot rot-pct"><span id="hud-pct">0%</span><span class="so-largo"> da área de voo</span></div>
     </div>
     <div class="hud-bloco bateria" id="hud-bateria">
-      <div class="hud-rot">bateria</div>
+      <div class="hud-rot rot-bateria">bateria</div>
       <div class="hud-num" id="hud-tempo">60</div>
-      <div class="barra"><i id="hud-bateria-barra"></i></div>
+      <div class="barra barra-bat"><i id="hud-bateria-barra"></i></div>
     </div>
     <div class="hud-bloco hud-dir">
-      <div class="hud-rot">pontos</div>
+      <div class="hud-rot rot-pontos">pontos</div>
       <div class="hud-num" id="hud-pontos">0</div>
-      <div id="hud-combo">COMBO ×2</div>
+      <div id="hud-combo">COMBO ×1</div>
       <div id="hud-bonus"></div>
     </div>
   </div>
