@@ -29,7 +29,7 @@ As fichas e o ranking ficam no navegador do notebook (localStorage). **Baixe a p
 ## Dados
 | Arquivo | O que é | Como gerar |
 |---|---|---|
-| `cidades/<código IBGE>.js` | área de voo: edificações em torno do centro urbano | `scripts/gerar_cidades.py` |
+| `cidades/<código IBGE>.js` | área de voo: edificações em torno do centro urbano, com ruas, rios, mar, nomes e limites de bairro, prefeitura | `scripts/gerar_cidades.py` |
 | `dados/municipios.js` | lista dos 295 municípios | idem |
 | `dados/iptu_sc_siconfi.csv` | IPTU 2025 (2024 se faltar) de cada município | `scripts/siconfi_iptu.py` |
 | `dados/casos_recadastramento.json` | casos reais de recadastramento, com fonte | pesquisa manual |
@@ -40,10 +40,11 @@ Cadeia completa (≈ 30 min, precisa de internet só nos 2 primeiros):
 python scripts/overture_sc.py DADOS/overture_sc.parquet      # edificações Overture (release 2026-10-21.0)
 python scripts/ibge_sc.py DADOS                              # Censo 2022, setores e malha
 python scripts/cruzar.py DADOS                               # município + urbano/rural de cada edificação
+python scripts/overture_mapa_sc.py DADOS                     # ruas, água, bairros (Overture) e prefeituras (OSM/Nominatim, ~12 min)
 python scripts/gerar_cidades.py DADOS .
 python scripts/siconfi_iptu.py
 python scripts/gerar_iptu.py .
 python scripts/testar_jogo.py . teste Chapec                 # teste no navegador (Playwright)
 ```
 
-Fontes: Overture Maps Foundation (edificações, inclui Google Open Buildings, Microsoft e OpenStreetMap); IBGE, Censo 2022 e setores censitários; Tesouro Nacional, Siconfi (DCA). O potencial de IPTU é estimativa para conversa, não é lançamento de imposto.
+Fontes: Overture Maps Foundation (edificações, inclui Google Open Buildings, Microsoft e OpenStreetMap; ruas, água, bairros e lugares); OpenStreetMap via Nominatim (prefeituras e igrejas matriz); IBGE, Censo 2022 e setores censitários; Tesouro Nacional, Siconfi (DCA). O potencial de IPTU é estimativa para conversa, não é lançamento de imposto.

@@ -174,6 +174,15 @@ h1, h2, h3, .hud-num, .btn, .placar b, .valor { font-family: var(--display); }
 #hud-ajuda.some { opacity: 0; }
 #contagem { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-size: calc(var(--u) * 10);
   font-weight: 700; letter-spacing: -.04em; color: var(--verde); text-shadow: 0 0 50px rgba(74,222,128,.6); }
+#hud-bairro { font-size: max(11px, calc(var(--u) * .95)); font-weight: 600; color: var(--menta); margin: .05em 0 .4em; }
+#hud-bairro:empty { display: none; }
+/* abertura: a cidade inteira vista do alto, com o nome, antes do 3-2-1 */
+#abertura { position: absolute; left: 50%; top: 29%; transform: translate(-50%, -50%) scale(.96); text-align: center; opacity: 0; transition: opacity .45s, transform .45s;
+  text-shadow: 0 2px 14px #030712, 0 0 3px #030712; width: 92vw; }
+#abertura.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+#abertura .a1 { font-weight: 600; font-size: calc(var(--u) * 1.1); letter-spacing: .2em; text-transform: uppercase; color: var(--menta); }
+#abertura .a2 { font-family: var(--display); font-weight: 700; font-size: calc(var(--u) * 5.2); letter-spacing: -.03em; line-height: 1.05; }
+#abertura .a3 { font-size: calc(var(--u) * 1.15); font-weight: 500; color: #CBD5E1; margin-top: .3em; }
 
 /* controles de toque */
 #joy { position: fixed; width: 130px; height: 130px; margin: -65px 0 0 -65px; border-radius: 50%; border: 2px solid rgba(110,231,183,.45);
@@ -302,6 +311,9 @@ body.em-voo #btn-equipe { display: none; }
   #hud-ajuda { white-space: normal; text-align: center; width: 90vw; bottom: calc(var(--u) * 13 + 110px); }
   .hud-logo { display: none; }
   #hud-msg { top: 44%; }
+  #abertura { top: 33%; }
+  #abertura .a2 { font-size: calc(var(--u) * 3.4); }
+  #abertura .a3 { font-size: calc(var(--u) * .95); }
   #hud-msg .m1 { font-size: calc(var(--u) * 2); }
   #hud-msg .m2 { font-size: calc(var(--u) * 1.1); }
   .bloco { grid-template-columns: 1fr; }

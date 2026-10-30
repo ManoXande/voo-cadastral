@@ -247,7 +247,47 @@ function montarCidade(c) {
   for (let k = 0; k < nc * nc; k++) ini[k + 1] += ini[k];
   const cursor = ini.slice(0, nc * nc), itens = new Uint32Array(n);
   for (let i = 0; i < n; i++) itens[cursor[qual[i]]++] = i;
-  return { ...c, nome: c.n, b: null, n, L, bx, by, bs, grade: { nc, cel, ini, itens } };   // n = nº de edificações
+  // o que faz o mapa parecer a cidade: ruas, rios, água, nomes de bairro e marcos (coordenadas 0..1 → metros)
+  const rot = (c.rot || []).map(([nome, x, y, tipo]) => ({ nome, x: x * L, y: y * L, tipo }));
+  const marcos = (c.marcos || []).map(([tipo, x, y]) => ({ tipo, x: x * L, y: y * L }));
+  const inicio = c.ini ? { x: c.ini[0] * L, y: c.ini[1] * L } : { x: L / 2, y: L / 2 };
+  const areas = (c.areas || []).map(([nome, b]) => {   // limites de bairro, com retângulo envolvente para o teste rápido
+    const pol = lerAgua(b, L), bb = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const aneis of pol) for (const p of aneis) for (let j = 0; j < p.length; j += 2) {
+      bb[0] = Math.min(bb[0], p[j]); bb[1] = Math.min(bb[1], p[j + 1]); bb[2] = Math.max(bb[2], p[j]); bb[3] = Math.max(bb[3], p[j + 1]);
+    }
+    return { nome, pol, bb };
+  });
+  return { ...c, nome: c.n, b: null, n, L, bx, by, bs, grade: { nc, cel, ini, itens },   // n = nº de edificações
+    linhas: lerLinhas(c.linhas, L), agua: lerAgua(c.agua, L), rot, areas, marcos, inicio };
+}
+function lerBin(b64) {
+  const bin = atob(b64 || "");
+  return { bin, u16: (o) => bin.charCodeAt(o) | (bin.charCodeAt(o + 1) << 8) };
+}
+function lerPontos(u16, o, n, L) {
+  const p = new Float32Array(n * 2);
+  for (let j = 0; j < n * 2; j++) p[j] = (u16(o + j * 2) / 65535) * L;
+  return p;
+}
+function lerLinhas(b64, L) {   // [nível u8][nº de pontos u16][x y u16]...
+  const { bin, u16 } = lerBin(b64), out = [];
+  for (let o = 0; o < bin.length;) {
+    const nv = bin.charCodeAt(o), n = u16(o + 1);
+    out.push({ nv, p: lerPontos(u16, o + 3, n, L) });
+    o += 3 + n * 4;
+  }
+  return out;
+}
+function lerAgua(b64, L) {     // [nº de anéis u16] e, por anel, [nº de pontos u16][x y u16]...
+  const { bin, u16 } = lerBin(b64), out = [];
+  for (let o = 0; o < bin.length;) {
+    const na = u16(o), aneis = [];
+    o += 2;
+    for (let a = 0; a < na; a++) { const n = u16(o); aneis.push(lerPontos(u16, o + 2, n, L)); o += 2 + n * 4; }
+    out.push(aneis);
+  }
+  return out;
 }
 
 /* ============================== camadas desenhadas uma vez (fora da tela) ============================== */
@@ -258,12 +298,34 @@ const TAM = GROSSO ? 2048 : 4096, TAM_RASTRO = 1024;
 const cvPredios = document.createElement("canvas"); cvPredios.width = cvPredios.height = TAM;
 const cvRastro = document.createElement("canvas"); cvRastro.width = cvRastro.height = TAM_RASTRO;
 const ctxP = cvPredios.getContext("2d"), ctxR = cvRastro.getContext("2d");
-const COR = { predio: "#334155", feito: "#4ADE80", ouro: "#FBBF24", limite: "rgba(110,231,183,.5)" };   // verde e menta da marca Autha
+const COR = { predio: "#334155", feito: "#4ADE80", ouro: "#FBBF24", limite: "rgba(110,231,183,.5)", agua: "#0b2a4a", rio: "#15467a" };   // verde e menta da marca Autha
+// vias mais escuras que as edificações (o alvo do jogo continua sendo o telhado); largura em metros
+const VIAS = [{ cor: "#111a2c", m: 6 }, { cor: "#18233a", m: 10 }, { cor: "#22304b", m: 15 }, { cor: COR.rio, m: 12 }];
 
 function desenharBase(C) {
   const k = TAM / C.L;
   ctxP.clearRect(0, 0, TAM, TAM);
   ctxR.clearRect(0, 0, TAM_RASTRO, TAM_RASTRO);
+  // mar, lagos e rios largos
+  ctxP.fillStyle = COR.agua;
+  for (const aneis of C.agua) {
+    ctxP.beginPath();
+    for (const p of aneis) { ctxP.moveTo(p[0] * k, p[1] * k); for (let j = 2; j < p.length; j += 2) ctxP.lineTo(p[j] * k, p[j + 1] * k); ctxP.closePath(); }
+    ctxP.fill("evenodd");
+  }
+  // rios (3), depois ruas (0), avenidas (1) e rodovias (2)
+  ctxP.lineCap = ctxP.lineJoin = "round";
+  for (const nv of [3, 0, 1, 2]) {
+    ctxP.strokeStyle = VIAS[nv].cor; ctxP.lineWidth = Math.max(1, VIAS[nv].m * k);
+    ctxP.beginPath();
+    for (const l of C.linhas) {
+      if (l.nv !== nv) continue;
+      const p = l.p;
+      ctxP.moveTo(p[0] * k, p[1] * k);
+      for (let j = 2; j < p.length; j += 2) ctxP.lineTo(p[j] * k, p[j + 1] * k);
+    }
+    ctxP.stroke();
+  }
   ctxP.strokeStyle = COR.limite; ctxP.lineWidth = Math.max(2, TAM / 900); ctxP.lineJoin = "round";
   for (const anel of C.limite) {
     ctxP.beginPath();
@@ -322,8 +384,8 @@ function prepararPartida(C, demo) {
     if (!J.dourado[i] && C.bs[i] > 7) { J.dourado[i] = 1; J.douradosLista.push(i); }
   }
   desenharBase(C);
-  // decola do pico urbano (centro da área de voo)
-  Object.assign(J.drone, { x: C.L / 2, y: C.L / 2, vx: 0, vy: 0, ang: -Math.PI / 2, alt: demo ? 1 : 0, tonto: 0 });
+  // decola da prefeitura (ou do pico urbano, o centro da área de voo, se a prefeitura não estiver no mapa)
+  Object.assign(J.drone, { x: C.inicio.x, y: C.inicio.y, vx: 0, vy: 0, ang: -Math.PI / 2, alt: demo ? 1 : 0, tonto: 0 });
   J.cam.x = J.drone.x; J.cam.y = J.drone.y;
   Object.assign(J, {
     tempo: cfg.duracao, decorrido: 0, pontos: 0, cadastrados: 0, dourados: 0, combo: 1, comboT: 0, ultimoAchado: -9,
@@ -421,7 +483,9 @@ function atualizarContagem(dt) {
     Som.motorLiga();
     return;
   }
-  if (agora !== antes) { el.textContent = agora > 0 ? agora : ""; Som.contagem(false); }
+  // antes do 3: a cidade inteira vista do alto, com o nome (ver vistaAtual)
+  if (agora !== antes && agora <= 3) { el.textContent = agora > 0 ? agora : ""; Som.contagem(false); }
+  $("#abertura").classList.toggle("on", J.contagemT > 0.6);
   if (J.contagemT < 0.6 && el.textContent !== "DECOLAR!") { el.textContent = "DECOLAR!"; Som.contagem(true); }
 }
 
@@ -597,10 +661,18 @@ function passoGrade(vista) {
   return 10000;
 }
 
+// na contagem a câmera começa no alto, com a cidade inteira na tela, e desce até a altura de voo
+function camera() {
+  const C = J.C, E = J.E;
+  if (J.estado !== "contagem") return { x: J.cam.x, y: J.cam.y, v: E.vista };
+  const f = clamp((J.contagemT - 0.5) / 2.5, 0, 1), e = f * f * (3 - 2 * f);   // 1 = cidade inteira, 0 = altura de voo
+  return { x: J.cam.x + (C.L / 2 - J.cam.x) * e, y: J.cam.y + (C.L / 2 - J.cam.y) * e, v: E.vista + (C.L * 1.1 - E.vista) * e };
+}
+
 function desenhar(tempo) {
-  const C = J.C, E = J.E, d = J.drone;
-  const esc = Math.min(W, H) / E.vista;                  // pixels por metro
-  const ox = W / 2 - J.cam.x * esc, oy = H / 2 - J.cam.y * esc;
+  const C = J.C, E = J.E, d = J.drone, cam = camera();
+  const esc = Math.min(W, H) / cam.v;                    // pixels por metro
+  const ox = W / 2 - cam.x * esc, oy = H / 2 - cam.y * esc;
   const sx = (x) => ox + x * esc, sy = (y) => oy + y * esc;
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -613,16 +685,16 @@ function desenhar(tempo) {
   ctx.strokeRect(sx(0), sy(0), C.L * esc, C.L * esc); ctx.restore();
 
   // grade UTM (SIRGAS 2000 / UTM 22S)
-  const passo = passoGrade(E.vista);
+  const passo = passoGrade(cam.v);
   ctx.strokeStyle = "rgba(148,163,184,.07)"; ctx.lineWidth = 1;
   ctx.fillStyle = "rgba(148,163,184,.35)"; ctx.font = `${Math.round(11 * DPR)}px Consolas, monospace`;
-  const eIni = Math.ceil((C.x0 + (J.cam.x - W / 2 / esc)) / passo) * passo;
-  for (let e = eIni; e < C.x0 + J.cam.x + W / 2 / esc; e += passo) {
+  const eIni = Math.ceil((C.x0 + (cam.x - W / 2 / esc)) / passo) * passo;
+  for (let e = eIni; e < C.x0 + cam.x + W / 2 / esc; e += passo) {
     const x = sx(e - C.x0);
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
     ctx.fillText("E " + milhar(e), x + 4 * DPR, H - 6 * DPR);
   }
-  const nTopo = C.y0 + C.L - (J.cam.y - H / 2 / esc);
+  const nTopo = C.y0 + C.L - (cam.y - H / 2 / esc);
   for (let nn = Math.floor(nTopo / passo) * passo; nn > nTopo - H / esc; nn -= passo) {
     const y = sy(C.y0 + C.L - nn);
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
@@ -635,12 +707,13 @@ function desenhar(tempo) {
   ctx.drawImage(cvRastro, sx(0), sy(0), C.L * esc, C.L * esc);
   ctx.globalAlpha = 1;
   const kP = TAM / C.L;
-  const vx0 = clamp(J.cam.x - W / 2 / esc, 0, C.L), vy0 = clamp(J.cam.y - H / 2 / esc, 0, C.L);
-  const vx1 = clamp(J.cam.x + W / 2 / esc, 0, C.L), vy1 = clamp(J.cam.y + H / 2 / esc, 0, C.L);
+  const vx0 = clamp(cam.x - W / 2 / esc, 0, C.L), vy0 = clamp(cam.y - H / 2 / esc, 0, C.L);
+  const vx1 = clamp(cam.x + W / 2 / esc, 0, C.L), vy1 = clamp(cam.y + H / 2 / esc, 0, C.L);
   if (vx1 > vx0 && vy1 > vy0) {
     ctx.imageSmoothingEnabled = esc < kP;
     ctx.drawImage(cvPredios, vx0 * kP, vy0 * kP, (vx1 - vx0) * kP, (vy1 - vy0) * kP, sx(vx0), sy(vy0), (vx1 - vx0) * esc, (vy1 - vy0) * esc);
   }
+  desenharNomes(sx, sy);
 
   // dourados ainda não achados brilham (só os que estão na vista)
   const pulso = 0.55 + 0.45 * Math.sin(tempo * 5);
@@ -685,6 +758,74 @@ function desenhar(tempo) {
     ctx.strokeText(t.txt, sx(t.x), sy(t.y)); ctx.fillStyle = t.cor; ctx.fillText(t.txt, sx(t.x), sy(t.y));
   }
   ctx.globalAlpha = 1; ctx.textAlign = "start";
+}
+
+// nomes de bairro, rios e marcos em tamanho fixo na tela; o que ficaria por cima de outro nome não entra
+const FONTE_D = `"Atyp Display", "Segoe UI", system-ui, sans-serif`, FONTE_T = `"Atyp Text", "Segoe UI", system-ui, sans-serif`;
+function desenharNomes(sx, sy) {
+  const C = J.C, m = Math.min(W, H), ocupado = zonasDoHud().slice();
+  const cabe = (x, y, w, h) => {
+    if (x + w / 2 < 0 || x - w / 2 > W || y + h / 2 < 0 || y - h / 2 > H) return false;
+    for (const r of ocupado) if (Math.abs(r.x - x) < (r.w + w) / 2 && Math.abs(r.y - y) < (r.h + h) / 2) return false;
+    ocupado.push({ x, y, w, h });
+    return true;
+  };
+  ctx.save();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(3,7,18,.9)";
+  // marcos primeiro: prefeitura (menta) e igreja matriz
+  const fm = Math.round(m * 0.017), r = m * 0.0085;
+  ctx.font = `700 ${fm}px ${FONTE_D}`; ctx.letterSpacing = "0.06em";
+  for (const k of C.marcos) {
+    const x = sx(k.x), y = sy(k.y), ty = y - r - fm * 0.8, txt = k.tipo === "prefeitura" ? "PREFEITURA" : "IGREJA MATRIZ";
+    if (!cabe(x, ty, ctx.measureText(txt).width + 8, fm * 1.3 + r * 2.4)) continue;
+    ctx.fillStyle = k.tipo === "prefeitura" ? "#6EE7B7" : "#E2E8F0";
+    ctx.lineWidth = 3 * DPR; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.stroke(); ctx.fill();
+    ctx.lineWidth = 4 * DPR; ctx.strokeText(txt, x, ty); ctx.fillText(txt, x, ty);
+  }
+  // bairros (0), localidades (1) e rios (2)
+  for (const t of C.rot) {
+    const f = Math.round(m * (t.tipo === 0 ? 0.019 : 0.016)), rio = t.tipo === 2, x = sx(t.x), y = sy(t.y);
+    if (x < -W * 0.3 || x > W * 1.3 || y < -f || y > H + f) continue;   // longe da tela: nem mede
+    ctx.font = rio ? `italic 600 ${f}px ${FONTE_T}` : `600 ${f}px ${FONTE_D}`;
+    ctx.letterSpacing = rio ? "0px" : "0.1em";
+    const txt = rio ? t.nome : t.nome.toUpperCase();
+    if (!t.larg || t.larg.f !== f) t.larg = { f, w: ctx.measureText(txt).width };
+    if (!cabe(x, y, t.larg.w + 10, f * 1.4)) continue;
+    ctx.lineWidth = 4 * DPR; ctx.strokeText(txt, x, y);
+    ctx.fillStyle = rio ? "rgba(96,165,250,.85)" : t.tipo === 0 ? "rgba(226,232,240,.62)" : "rgba(203,213,225,.48)";
+    ctx.fillText(txt, x, y);
+  }
+  ctx.restore();
+}
+// bairro sob o drone: só pelo limite do bairro (sem limite no mapa, o HUD não arrisca um nome)
+function dentroDe(x, y, pol) {
+  let ok = false;
+  for (const aneis of pol) for (const p of aneis) {
+    for (let i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
+      const yi = p[i + 1], yj = p[j + 1];
+      if ((yi > y) !== (yj > y) && x < ((p[j] - p[i]) * (y - yi)) / (yj - yi) + p[i]) ok = !ok;
+    }
+  }
+  return ok;
+}
+function bairroAtual() {
+  const { x, y } = J.drone;
+  for (const a of J.C.areas) {
+    if (x < a.bb[0] || y < a.bb[1] || x > a.bb[2] || y > a.bb[3]) continue;
+    if (dentroDe(x, y, a.pol)) return `sobre o bairro ${a.nome}`;
+  }
+  return "";
+}
+// partes da tela cobertas pelo HUD e pelos textos: nome de bairro não vai embaixo delas
+const SEL_ZONAS = "#hud.ativo .hud-bloco, #hud.ativo #minimapa, #hud.ativo .hud-baixo, #hud-ajuda:not(.some), #abertura.on > div, .tela.ativa .inicio-meio > *, .tela.ativa .inicio-topo";
+let zonasCache = [], zonasT = 0;
+function zonasDoHud() {
+  if (performance.now() - zonasT < 250) return zonasCache;
+  zonasT = performance.now();
+  zonasCache = [...document.querySelectorAll(SEL_ZONAS)].map((el) => el.getBoundingClientRect()).filter((r) => r.width > 0)
+    .map((r) => ({ x: (r.left + r.width / 2) * DPR, y: (r.top + r.height / 2) * DPR, w: r.width * DPR, h: r.height * DPR }));
+  return zonasCache;
 }
 
 function desenharLaser(x, y, ang, r, tempo, fix, alt) {
@@ -808,7 +949,7 @@ function atualizarHUD() {
   setTxt("#hud-combo", `COMBO ×${J.combo}`);
   const e = C.x0 + J.drone.x, n = C.y0 + C.L - J.drone.y;
   setTxt("#hud-coord", `E ${milhar(e)}  N ${milhar(n)}  ·  SIRGAS 2000 / UTM 22S  ·  ${J.decorrido < J.fixAte ? "FIX" : "FLOAT"}`);
-  if (performance.now() - (J.miniT || 0) > 200) { J.miniT = performance.now(); desenharMinimapa(); }
+  if (performance.now() - (J.miniT || 0) > 200) { J.miniT = performance.now(); desenharMinimapa(); setTxt("#hud-bairro", bairroAtual()); }
   if (J.msgAte && performance.now() > J.msgAte) { $("#hud-msg").classList.remove("on"); J.msgAte = 0; }
   if (J.ouroAcum && performance.now() > J.ouroAcum.ate) { $("#hud-bonus").classList.remove("on"); J.ouroAcum = null; }
 }
@@ -817,10 +958,10 @@ function desenharMinimapa() {
   c.fillStyle = "#060c1a"; c.fillRect(0, 0, S, S);
   c.globalAlpha = 0.5; c.drawImage(cvRastro, 0, 0, S, S); c.globalAlpha = 1;
   c.drawImage(cvPredios, 0, 0, S, S);
-  const k = S / C.L, v = J.E.vista;
+  const cam = camera(), k = S / C.L, v = cam.v;
   const a = W / Math.min(W, H), b = H / Math.min(W, H);
   c.strokeStyle = "rgba(248,250,252,.6)"; c.lineWidth = 1.5;
-  c.strokeRect((J.cam.x - (v * a) / 2) * k, (J.cam.y - (v * b) / 2) * k, v * a * k, v * b * k);
+  c.strokeRect((cam.x - (v * a) / 2) * k, (cam.y - (v * b) / 2) * k, v * a * k, v * b * k);
   c.fillStyle = "#ff3b6b"; c.beginPath(); c.arc(J.drone.x * k, J.drone.y * k, 4, 0, 7); c.fill();
 }
 function mensagem(t1, t2, t3) {
@@ -946,14 +1087,18 @@ async function escolherCidade(m) {
 function comecarVoo(C) {
   $("#busca").blur();
   prepararPartida(C, false);
-  J.estado = "contagem"; J.contagemT = 3.2;
+  J.estado = "contagem"; J.contagemT = 4.4;
   hudCache = {};
   $("#hud-cidade").textContent = C.nome;
+  $("#abertura-cidade").textContent = C.nome;
+  $("#abertura-info").textContent = (C.marcos.some((m) => m.tipo === "prefeitura") ? "decolagem na Prefeitura" : "decolagem no centro da cidade")
+    + ` · ${milhar(C.n)} edificações vistas por satélite`;
+  $("#abertura").classList.add("on");
   $("#hud-msg").classList.remove("on");
   const ajuda = { pad: `Analógico move o drone · segure ${bt("A")} para turbo`, toque: "Arraste o dedo para pilotar · segure TURBO", teclado: "Setas ou WASD movem o drone · Espaço = turbo", mouse: "Clique e arraste para pilotar · Espaço = turbo" };
   $("#hud-ajuda").textContent = (ajuda[Ent.tipo] || ajuda.teclado) + " · fuja dos urubus, pegue as casas douradas!";
   $("#hud-ajuda").classList.remove("some");
-  $("#contagem").textContent = "3";
+  $("#contagem").textContent = "";
   mostrarTela("hud");
   atualizarHUD();
   Som.contagem(false);
