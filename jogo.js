@@ -362,7 +362,8 @@ const MARCOS = [
   { p: 0.80, t: "Cadastro quase completo", s: "pronto para conversar com o SINTER" },
   { p: 0.90, t: "Cidade quase inteira!", s: "o cadastro mais completo da COMAC" },
 ];
-const BONUS_MARCO = 3, BONUS_MAX = 15;   // o voo nunca passa de duração + 15 s (a fila do estande anda)
+// o tempo extra vem das baterias achadas no mapa; os marcos dão só um pouco. O voo nunca passa de duração + 20 s (a fila do estande anda)
+const BONUS_MARCO = 1, BONUS_BATERIA = 6, BONUS_MAX = 20, BATERIA_BAIXA = 20;
 function ganharTempo(s) { const dado = Math.max(0, Math.min(s, BONUS_MAX - J.bonusTempo)); J.bonusTempo += dado; J.tempo += dado; return dado; }
 
 // escala da cidade: tudo é proporcional ao tamanho da área de voo, para cidade pequena e grande serem igualmente jogáveis
@@ -390,6 +391,7 @@ function prepararPartida(C, demo) {
   Object.assign(J, {
     tempo: cfg.duracao, decorrido: 0, pontos: 0, cadastrados: 0, dourados: 0, combo: 1, comboT: 0, ultimoAchado: -9,
     marcos: [], fixAte: 0, poderes: [], urubus: [], part: [], textos: [], proximoPoder: 3.5, proximoUrubu: 12, msgAte: 0, alertaSeg: 99, bonusTempo: 0,
+    baterias: 0, avisouBateria: false,
   });
   J.demoAlvo = { t: Math.random() * 100 };
 }
@@ -586,25 +588,31 @@ function verificarMarcos() {
   }
 }
 
-/* ---------- itens: bateria, sinal FIX (laser largo) ---------- */
+/* ---------- itens: bateria (+tempo) e GPS (sinal FIX: laser largo) ---------- */
 function atualizarPoderes(dt) {
   const E = J.E, d = J.drone;
-  J.proximoPoder -= dt;
+  // bateria baixa: a próxima bateria vem logo e perto do drone, para quem está perdendo ter como se salvar
+  const baixa = J.tempo < BATERIA_BAIXA && J.bonusTempo < BONUS_MAX;
+  if (baixa && !J.avisouBateria && !J.msgAte) { J.avisouBateria = true; mensagem("Bateria acabando!", "pegue as baterias verdes para voar mais", ""); }
+  J.proximoPoder -= dt * (baixa ? 1.8 : 1);
   if (J.proximoPoder <= 0 && J.poderes.length < 3) {
-    J.proximoPoder = 5 + Math.random() * 3;
+    J.proximoPoder = 4 + Math.random() * 3;
     // nasce à frente do drone, sobre uma edificação ainda não cadastrada se possível
-    const dist = E.vista * (0.28 + Math.random() * 0.2), ang = d.ang + (Math.random() - 0.5) * 2.2;
+    const dist = E.vista * (baixa ? 0.18 + Math.random() * 0.12 : 0.28 + Math.random() * 0.2), ang = d.ang + (Math.random() - 0.5) * (baixa ? 1 : 2.2);
     let x = clamp(d.x + Math.cos(ang) * dist, E.raio, J.C.L - E.raio), y = clamp(d.y + Math.sin(ang) * dist, E.raio, J.C.L - E.raio);
     const cabeBateria = J.bonusTempo < BONUS_MAX;
-    J.poderes.push({ x, y, tipo: cabeBateria && Math.random() < 0.55 ? "bateria" : "fix", vida: 11 });
+    J.poderes.push({ x, y, tipo: cabeBateria && Math.random() < (baixa ? 0.85 : 0.65) ? "bateria" : "fix", vida: 11 });
   }
   for (const p of J.poderes) {
     p.vida -= dt;
-    if (Math.hypot(p.x - d.x, p.y - d.y) < E.vista * 0.06) {
+    if (Math.hypot(p.x - d.x, p.y - d.y) < E.vista * 0.07) {
       p.vida = -1;
       Som.poder();
-      if (p.tipo === "bateria") { const g = ganharTempo(5); flutuar(p.x, p.y, g ? `+${g} s de bateria` : "Bateria cheia!", "#4ADE80", 1.3); }
-      else { J.fixAte = J.decorrido + 6; flutuar(p.x, p.y, "Sinal FIX: laser dobrado!", "#6EE7B7", 1.5); }
+      if (p.tipo === "bateria") {
+        const g = ganharTempo(BONUS_BATERIA);
+        if (g) J.baterias++;
+        flutuar(p.x, p.y, g ? `+${g} s de bateria` : "Bateria cheia!", "#4ADE80", 1.3);
+      } else { J.fixAte = J.decorrido + 6; flutuar(p.x, p.y, "GPS com FIX: laser dobrado!", "#6EE7B7", 1.5); }
       for (let k = 0; k < 14; k++) poeira(p.x, p.y, p.tipo === "bateria" ? "verde" : "menta");
     }
   }
@@ -752,6 +760,7 @@ function desenhar(tempo) {
   if (J.estado === "voo" || J.demo || J.estado === "contagem") desenharLaser(dx, dy, d.ang, E.raio * (fix ? 1.8 : 1) * esc, tempo, fix, d.alt);
   for (const u of J.urubus) desenharUrubu(sx(u.x), sy(u.y), u, tempo);
   desenharDrone(dx, dy, d, tempo);
+  if (fix && J.estado === "voo") desenharFix(dx, dy - Math.min(W, H) * 0.075, (J.fixAte - J.decorrido) / 6);
 
   // textos flutuantes
   ctx.textAlign = "center";
@@ -896,21 +905,43 @@ function desenharDrone(x, y, d, tempo) {
   ctx.restore();
 }
 
+// selo "FIX" sobre o drone enquanto o GPS vale, com o anel do tempo que falta
+function desenharFix(x, y, resto) {
+  const r = Math.min(W, H) * 0.022;
+  ctx.fillStyle = "rgba(3,7,18,.85)"; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.strokeStyle = "#6EE7B7"; ctx.lineWidth = 3 * DPR; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamp(resto, 0, 1)); ctx.stroke();
+  ctx.fillStyle = "#6EE7B7"; ctx.font = `700 ${Math.round(r * 0.8)}px "Atyp Display", "Segoe UI", sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("FIX", x, y + 1);
+  ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+}
+
 function desenharPoder(x, y, p, tempo) {
-  const R = Math.min(W, H) * 0.028 * (1 + 0.08 * Math.sin(tempo * 6));
+  const R = Math.min(W, H) * 0.034 * (1 + 0.08 * Math.sin(tempo * 6));   // maior que antes: agora a bateria decide o tempo de voo
   const pisca = p.vida < 2.5 && Math.sin(tempo * 20) > 0;
   if (pisca) return;
-  const cor = p.tipo === "bateria" ? "#4ADE80" : "#6EE7B7";
+  const bat = p.tipo === "bateria", cor = bat ? "#4ADE80" : "#6EE7B7";
   ctx.fillStyle = "rgba(3,7,18,.75)"; ctx.strokeStyle = cor; ctx.lineWidth = 3 * DPR;
   ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.fill(); ctx.stroke();
   ctx.fillStyle = cor;
-  if (p.tipo === "bateria") {
+  if (bat) {
     ctx.fillRect(x - R * 0.42, y - R * 0.25, R * 0.75, R * 0.5);
     ctx.fillRect(x + R * 0.35, y - R * 0.12, R * 0.12, R * 0.24);
   } else {
-    ctx.font = `700 ${Math.round(R * 0.62)}px "Atyp Display", "Segoe UI", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("FIX", x, y + 1); ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+    // GPS: pino de localização com o sinal saindo dele
+    const cy = y - R * 0.12, r = R * 0.3;
+    ctx.beginPath(); ctx.moveTo(x, y + R * 0.5);
+    ctx.arc(x, cy, r, Math.PI * 0.8, Math.PI * 0.2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "rgba(3,7,18,.9)"; ctx.beginPath(); ctx.arc(x, cy, r * 0.42, 0, 7); ctx.fill();
+    ctx.strokeStyle = cor; ctx.lineWidth = 2 * DPR; ctx.lineCap = "round";
+    for (const k of [1, 1.55]) { ctx.beginPath(); ctx.arc(x + R * 0.05, cy - R * 0.05, r * 1.25 * k, -Math.PI * 0.42, -Math.PI * 0.08); ctx.stroke(); }
   }
+  // rótulo embaixo: quem nunca jogou entende sem ler regra
+  const f = Math.round(R * 0.55), txt = bat ? `+${BONUS_BATERIA} s` : "GPS";
+  ctx.font = `700 ${f}px "Atyp Display", "Segoe UI", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top";
+  ctx.lineWidth = 4 * DPR; ctx.strokeStyle = "rgba(3,7,18,.9)";
+  ctx.strokeText(txt, x, y + R + 3 * DPR); ctx.fillStyle = cor; ctx.fillText(txt, x, y + R + 3 * DPR);
+  ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
 }
 
 function desenharUrubu(x, y, u, tempo) {
@@ -1104,7 +1135,7 @@ function comecarVoo(C) {
   $("#abertura").classList.add("on");
   $("#hud-msg").classList.remove("on");
   const ajuda = { pad: `Analógico move o drone · segure ${bt("A")} para turbo`, toque: "Arraste o dedo para pilotar · segure TURBO", teclado: "Setas ou WASD movem o drone · Espaço = turbo", mouse: "Clique e arraste para pilotar · Espaço = turbo" };
-  $("#hud-ajuda").textContent = (ajuda[Ent.tipo] || ajuda.teclado) + " · fuja dos urubus, pegue as casas douradas!";
+  $("#hud-ajuda").textContent = (ajuda[Ent.tipo] || ajuda.teclado) + " · pegue baterias para voar mais!";
   $("#hud-ajuda").classList.remove("some");
   $("#contagem").textContent = "";
   mostrarTela("hud");

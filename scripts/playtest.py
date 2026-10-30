@@ -48,7 +48,7 @@ window.__alvo = function () {
 };
 window.__foto = function () {
   return { estado: J.estado, tempo: +J.tempo.toFixed(2), decorrido: +J.decorrido.toFixed(2), cad: J.cadastrados, n: J.C ? J.C.n : 0,
-    pontos: Math.round(J.pontos), combo: J.combo, marcos: J.marcos.length, dourados: J.dourados, tonto: J.drone.tonto > 0,
+    pontos: Math.round(J.pontos), combo: J.combo, marcos: J.marcos.length, dourados: J.dourados, baterias: J.baterias || 0, tonto: J.drone.tonto > 0,
     fix: J.decorrido < J.fixAte, x: J.drone.x, y: J.drone.y, msg: document.querySelector('#hud-msg').classList.contains('on') ? document.querySelector('#hud-msg .m1').textContent : '' };
 };
 // checagens de interface na tela ativa
@@ -256,7 +256,7 @@ def resumir(d):
         "perfil": d["perfil"], "cidade": d["cidade"], "cerebro": d["cerebro"], "entrada": d["entrada"], "tela": d["tela"],
         "pontos": ult.get("pontos"), "imoveis": ult.get("cad"), "pct_area": round(100 * ult.get("cad", 0) / max(1, ult.get("n", 1)), 1),
         "segundos_de_jogo": round(dur, 1), "segundos_reais": real, "velocidade_jogo": round(dur / real, 2) if real else None,
-        "marcos_em_s": marcos_t, "subidas_de_combo": combos, "dourados": ult.get("dourados"),
+        "marcos_em_s": marcos_t, "subidas_de_combo": combos, "dourados": ult.get("dourados"), "baterias": max((x.get("baterias", 0) for x in a), default=0),
         "pct_tempo_sem_cadastrar": round(100 * secos / dur, 1) if dur else None,
         "urubus": sum(1 for e in d["eventos"] if "urubu" in e["ev"]),
         "fps_mediana": d["fps_mediana"], "quadro_p95_ms": d["quadro_p95_ms"],
