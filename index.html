@@ -19,9 +19,9 @@
   </div>
   <div class="inicio-meio">
     <div>
-      <div class="sobre">COMAC-SC 2026 · desafio do prefeito</div>
+      <div class="sobre">COMAC-SC 2026 · 295 cidades, um ranking</div>
       <h1 class="titulo-jogo">Voo<span class="grad">Cadastral.</span></h1>
-      <p class="sub-jogo">Pilote o drone sobre a <b>sua cidade</b> e dispare o laser cadastral. Quanto mais imóveis cadastrar, mais pontos no <b>Ranking COMAC</b>. No fim, veja o <b>Raio-X do IPTU</b> do seu município.</p>
+      <p class="sub-jogo">Pilote um drone sobre o mapa real da <b>sua cidade</b> e cadastre o máximo de imóveis em 1 minuto. No fim, o <b>Raio-X do IPTU</b> do seu município.</p>
       <div class="cta" id="cta-inicio">Aperte A para começar</div>
       <div class="premio" id="premio-inicio"></div>
     </div>
@@ -88,14 +88,15 @@
     <div class="marca peq"><img src="marca/authageo-branco.png" alt="Autha-Geo"></div>
     <div>
       <div class="sobre">Resultado do voo</div>
-      <h1 id="fim-titulo">Missão cumprida!</h1>
+      <div class="estrelas" id="fim-estrelas"></div>
+      <h1 id="fim-titulo">Belo voo!</h1>
       <p class="resumo" id="fim-resumo"></p>
       <p class="piada" id="fim-piada"></p>
       <div class="placar" id="fim-placar"></div>
     </div>
     <div class="cartao-iptu" id="fim-iptu"></div>
     <div class="botoes">
-      <button class="btn btn-pri" data-acao="ficha">Receber o Raio-X no WhatsApp e entrar no ranking <span class="tecla">A</span></button>
+      <button class="btn btn-pri" data-acao="ficha">Receber o Raio-X no WhatsApp <span class="tecla">A</span></button>
       <button class="btn" data-acao="de-novo">Voar de novo <span class="tecla">Y</span></button>
       <button class="btn" data-acao="outra-cidade">Outra cidade <span class="tecla">X</span></button>
     </div>
@@ -107,27 +108,27 @@
   <form class="ficha" id="ficha" autocomplete="off" onsubmit="return false">
     <div class="marca peq"><img src="marca/authageo-branco.png" alt="Autha-Geo"></div>
     <div class="filete"></div>
-    <div class="sobre">Passo final</div>
-    <h2>Ranking COMAC + relatório do IPTU</h2>
+    <div class="sobre">Último passo · 30 segundos</div>
+    <h2>Receba o Raio-X da sua cidade no WhatsApp</h2>
     <p class="sub" id="ficha-sub"></p>
-    <p class="dica-contatos">Quem cuida do IPTU e das obras na prefeitura? Mandamos o Raio-X para eles também.</p>
+    <p class="dica-contatos">Indique quem cuida do IPTU e das obras: o relatório chega pronto para eles também.</p>
     <div class="grade-ficha">
-      <div class="campo" id="c-nome"><label>Nome (aparece no ranking) *</label><input id="f-nome" maxlength="40"></div>
+      <div class="campo" id="c-nome"><label>Seu nome (aparece no ranking) *</label><input id="f-nome" maxlength="40" placeholder="Nome e sobrenome"></div>
       <div class="campo" id="c-whats"><label>WhatsApp * <small>com DDD</small></label><input id="f-whats" inputmode="tel" placeholder="(49) 99999-9999"></div>
       <div class="cheia"><span class="grupo-titulo">Cargo</span><div class="chips" id="f-cargo"></div></div>
-      <div class="bloco"><span class="grupo-titulo">Contato do setor de tributos</span>
+      <div class="bloco"><span class="grupo-titulo">Recebe também: setor de tributos</span>
         <div class="campo"><input id="f-trib-nome" placeholder="Nome"></div>
         <div class="campo"><input id="f-trib-whats" placeholder="WhatsApp" inputmode="tel"></div></div>
-      <div class="bloco"><span class="grupo-titulo">Contato do engenheiro</span>
+      <div class="bloco"><span class="grupo-titulo">Recebe também: engenharia e obras</span>
         <div class="campo"><input id="f-eng-nome" placeholder="Nome"></div>
         <div class="campo"><input id="f-eng-whats" placeholder="WhatsApp" inputmode="tel"></div></div>
-      <div class="cheia"><span class="grupo-titulo">Quer conversar sobre o cadastro da sua cidade?</span><div class="chips" id="f-interesse"></div></div>
+      <div class="cheia"><span class="grupo-titulo">Quando podemos mostrar o diagnóstico do cadastro?</span><div class="chips" id="f-interesse"></div></div>
       <label class="consent" id="c-consent"><input type="checkbox" id="f-consent">
-        <span>Autorizo a Autha a me enviar o relatório e a entrar em contato comigo e com os contatos acima sobre o Autha-Geo. Os dados ficam só com a Autha. *</span></label>
+        <span>Autorizo a Autha-Geo a me enviar o relatório por WhatsApp e a falar sobre o cadastro da prefeitura comigo e com os contatos que indiquei. Os dados ficam só com a Autha-Geo; posso pedir a exclusão quando quiser. *</span></label>
     </div>
     <div id="ficha-erro"></div>
     <div class="botoes">
-      <button class="btn btn-pri" data-acao="salvar-ficha">Salvar e ver o ranking <span class="tecla">Enter</span></button>
+      <button class="btn btn-pri" data-acao="salvar-ficha">Receber o relatório e ver o ranking <span class="tecla">Enter</span></button>
       <button class="btn" data-acao="voltar-fim">Voltar <span class="tecla">Esc</span></button>
     </div>
   </form>

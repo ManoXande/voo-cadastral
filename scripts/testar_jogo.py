@@ -32,7 +32,7 @@ with sync_playwright() as p:
         pg.keyboard.up("ArrowDown")
         print(nome, "estado", pg.evaluate("J.estado"), "cad", pg.evaluate("J.cadastrados"), "n", pg.evaluate("J.C.n"), "pts", pg.evaluate("Math.round(J.pontos)"), "tempo", pg.evaluate("J.tempo.toFixed(1)"))
         pg.evaluate("J.tempo = 0.05")
-        pg.wait_for_timeout(3600)
+        pg.wait_for_function("J.estado === 'fim'", timeout=10000); pg.wait_for_timeout(1700)   # pouso + trava de 1,5 s do resultado
         print(nome, "estado depois", pg.evaluate("J.estado"))
         pg.screenshot(path=str(OUT / f"{nome}_5_fim.png"), full_page=True)
         pg.click("[data-acao=ficha]"); pg.wait_for_timeout(300)
@@ -41,7 +41,7 @@ with sync_playwright() as p:
         pg.screenshot(path=str(OUT / f"{nome}_6_ficha.png"))
         pg.click("[data-acao=salvar-ficha]"); pg.wait_for_timeout(400)
         pg.screenshot(path=str(OUT / f"{nome}_7_ranking.png"))
-        print(nome, "estado final", pg.evaluate("J.estado"), pg.evaluate("localStorage.getItem('voo-cadastral:partidas')")[:220])
+        print(nome, "estado final", pg.evaluate("J.estado"), pg.evaluate("localStorage.getItem(CHAVE.partidas)")[:220])
         pg.keyboard.press("Control+e"); pg.wait_for_timeout(300)
         pg.screenshot(path=str(OUT / f"{nome}_8_equipe.png"))
         ctx.close()

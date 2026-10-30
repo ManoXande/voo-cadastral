@@ -173,13 +173,17 @@ h1, h2, h3, .hud-num, .btn, .placar b, .valor { font-family: var(--display); }
 #hud-msg .m3 { display: inline-block; margin-top: .6em; font-family: var(--display); font-size: calc(var(--u) * 1.15); font-weight: 700; color: var(--sobre-verde); background: var(--grad);
   padding: .25em .9em; border-radius: 99px; box-shadow: var(--brilho); }
 #hud-msg .m3:empty { display: none; }
-#hud-ajuda { position: absolute; left: 50%; bottom: 14%; transform: translateX(-50%); font-size: calc(var(--u) * 1.1); font-weight: 500;
+#hud-ajuda { position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%); font-size: calc(var(--u) * 1.1); font-weight: 500;
   background: rgba(3,7,18,.82); padding: .55em 1.2em; border-radius: 99px; border: 1px solid var(--linha-verde); transition: opacity .5s; white-space: nowrap; }
 #hud-ajuda.some { opacity: 0; }
 #contagem { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-size: calc(var(--u) * 10);
   font-weight: 700; letter-spacing: -.04em; color: var(--verde); text-shadow: 0 0 50px rgba(74,222,128,.6); }
 #hud-bairro { font-size: max(11px, calc(var(--u) * .95)); font-weight: 600; color: var(--menta); margin: .05em 0 .4em; }
 #hud-bairro:empty { display: none; }
+/* reta final: borda vermelha pulsando e a contagem de 5 a 1 gigante e translúcida */
+body.reta-final #hud::after { content: ""; position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 calc(var(--u) * 7) rgba(248,113,113,.5);
+  animation: piscar .5s infinite; }
+body.reta-final #contagem { opacity: .35; color: var(--ouro); text-shadow: 0 0 40px rgba(251,191,36,.5); }
 /* abertura: a cidade inteira vista do alto, com o nome, antes do 3-2-1 */
 #abertura { position: absolute; left: 50%; top: 29%; transform: translate(-50%, -50%) scale(.96); text-align: center; opacity: 0; transition: opacity .45s, transform .45s;
   text-shadow: 0 2px 14px #030712, 0 0 3px #030712; width: 92vw; }
@@ -220,6 +224,13 @@ body.toque .tecla, body.toque .dica-teclado { display: none; }   /* no celular n
 .placar .mapeou span { text-transform: none; letter-spacing: 0; font-size: calc(var(--u) * 1.05); color: #cbd5e1; }
 .placar .mapeou span:first-child { text-transform: uppercase; letter-spacing: .1em; font-size: max(11px, calc(var(--u) * .85)); color: var(--cinza); }
 .placar .mapeou .barra { margin-top: .6em; }
+.placar .rival { grid-column: 1 / -1; box-shadow: inset 2px 0 0 var(--ouro); font-size: calc(var(--u) * 1.02); color: #cbd5e1; line-height: 1.4; }
+.placar .rival b { display: inline; font-size: 1em; color: var(--ouro); letter-spacing: 0; }
+/* estrelas do resultado: acendem uma a uma */
+.estrelas { display: flex; gap: .15em; margin-top: calc(var(--u) * .5); font-size: calc(var(--u) * 2.4); line-height: 1; }
+.estrelas i { font-style: normal; color: rgba(148,163,184,.25); }
+.estrelas i.on { color: var(--ouro); text-shadow: 0 0 18px rgba(251,191,36,.55); animation: estrela .5s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(.45s + var(--i) * .3s); }
+@keyframes estrela { 0% { transform: scale(0) rotate(-40deg); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .cartao-iptu { background: linear-gradient(160deg, rgba(15,23,42,.95), rgba(10,15,28,.95) 60%); border: 1px solid var(--linha-verde); border-radius: var(--raio);
   padding: calc(var(--u) * 1.4); box-shadow: 0 0 60px -20px rgba(74,222,128,.25); align-self: start; }
 .cartao-iptu .chip { font-size: max(11px, calc(var(--u) * .8)); font-weight: 600; letter-spacing: .18em; color: var(--verde); display: inline-flex; align-items: center; gap: .6em; }
@@ -237,6 +248,9 @@ body.toque .tecla, body.toque .dica-teclado { display: none; }   /* no celular n
 .cib { margin-top: var(--u); padding: .6em .9em; border-radius: 12px; background: rgba(74,222,128,.08); border: 1px solid var(--linha-verde);
   font-family: var(--display); font-weight: 600; font-size: calc(var(--u) * 1.15); color: var(--branco); }
 .dica-contatos { font-family: var(--display); font-weight: 600; font-size: calc(var(--u) * 1.1); color: var(--menta); margin: 0; }
+.final .passe { display: block; margin-top: .9em; font-family: var(--display); font-weight: 600; color: var(--menta); }
+.ja-voaram { margin: .7em 0 0; padding-top: .6em; border-top: 1px solid var(--linha); color: var(--cinza); font-size: calc(var(--u) * .95); line-height: 1.4; }
+.ja-voaram b { color: var(--branco); }
 .final .proximo { display: block; margin-top: .8em; padding: .8em 1em; border-radius: 14px; background: var(--painel); border: 1px solid var(--linha-verde); text-align: left; font-size: .92em; }
 .caso { margin: var(--u) 0 0; padding: .7em .9em; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid var(--linha);
   font-size: calc(var(--u) * .98); line-height: 1.5; color: #cbd5e1; }

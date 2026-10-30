@@ -136,7 +136,7 @@ function montar() {
     const fonte = (c) => `<a href="${esc(c.fonte_url)}">${esc(c.fonte_titulo || c.fonte_url)}</a>`;
     h += `<h2><span class="n">2</span>O que municípios que recadastraram conseguiram</h2>
       <div class="destaque"><div class="valor">+${CASOS.max > CASOS.min ? reais(V.v * CASOS.min / 100) + " a +" + reais(V.v * CASOS.max / 100) : reais(V.v * CASOS.min / 100)} por ano</div>
-      <p>é o que o IPTU de ${esc(M.n)} subiria repetindo o resultado de ${esc(CASOS.fonteCurta)}, <b>sem aumentar alíquota</b>: só levando para o cadastro o que já está construído.</p></div>
+      <p>é quanto o IPTU de ${esc(M.n)} poderia crescer, em simulação com o resultado de ${esc(CASOS.fonteCurta)}, <b>sem aumentar alíquota</b>: só levando para o cadastro o que já está construído.</p></div>
       <p><b>Receita de IPTU, antes × depois</b></p>
       <table><tr><th>Município</th><th>O que mudou</th><th>Aumento</th><th>Fonte</th></tr>
       ${CASOS.casos.map((c) => `<tr><td><b>${esc(c.municipio)}/${esc(c.uf)}</b><br>${esc(c.ano || "")}</td><td>${esc(c.o_que_mede)}: ${esc(c.antes)} → ${esc(c.depois)}</td><td><b>+${pct(c.aumento_pct)}%</b></td><td>${fonte(c)}</td></tr>`).join("")}
