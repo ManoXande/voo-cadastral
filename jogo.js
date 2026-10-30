@@ -33,6 +33,10 @@ const hoje = () => new Date().toLocaleDateString("sv-SE");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const digitos = (s) => String(s || "").replace(/\D/g, "");
+function arredReais(v) {
+  const passo = v >= 1e9 ? 1e8 : v >= 1e6 ? 1e5 : v >= 1e3 ? 1e3 : 1;
+  return Math.round(v / passo) * passo;
+}
 function reais(v) {
   const um = (x) => x.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
   if (v >= 1e9) return "R$ " + um(v / 1e9) + " bi";
@@ -1157,20 +1161,22 @@ function mostrarFim() {
   const res = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), quando: new Date().toISOString(), dia: hoje(),
     municipioCod: C.c, municipio: C.nome, pontos: Math.round(J.pontos), imoveis: J.cadastrados, pct: Math.round(p * 1000) / 10,
+    pctMun: m.edif ? Math.round((J.cadastrados / m.edif) * 1000) / 10 : null,   // % de todas as edificações do município
     dourados: J.dourados, duracao: cfg.duracao,
   };
   const todas = partidas(); todas.push(res); gravar(CHAVE.partidas, todas);
   J.resultado = res; J.partidaId = res.id; J.fimEm = performance.now();
   const pos = posicaoHoje(res);
-  $("#fim-titulo").textContent = p >= 0.5 ? "Cidade cadastrada!" : "Missão cumprida!";
+  $("#fim-titulo").textContent = (res.pctMun ?? res.pct) >= 50 ? "Cidade cadastrada!" : "Missão cumprida!";
   $("#fim-resumo").innerHTML = `Você cadastrou <b class="verde">${milhar(J.cadastrados)} imóveis</b> de <b>${esc(C.nome)}</b> em ${Math.round(J.decorrido)} ${Math.round(J.decorrido) === 1 ? "segundo" : "segundos"} de voo.`;
   $("#fim-piada").textContent = "No jogo, eles já estão prontos para o CIB. Na vida real, a Autha faz isso com drone, laser e o sistema Autha-Geo.";
   $("#fim-placar").innerHTML = [
     [milhar(res.pontos), "pontos"],
     [pos ? `${pos}º` : "—", "lugar no ranking de hoje"],
-    [`${res.pct.toLocaleString("pt-BR")}%`, "da área de voo cadastrada"],
-    [milhar(J.dourados), J.dourados === 1 ? "casa dourada (bônus)" : "casas douradas (bônus)"],
-  ].map(([b, s]) => `<div><b>${b}</b><span>${s}</span></div>`).join("");
+  ].map(([b, s]) => `<div><b>${b}</b><span>${s}</span></div>`).join("")
+    + (res.pctMun == null ? "" : `<div class="mapeou"><span>Você mapeou</span><b>${res.pctMun.toLocaleString("pt-BR")}%</b>
+      <span>de ${esc(C.nome)} · ${milhar(J.cadastrados)} de ${milhar(m.edif)} imóveis</span>
+      <div class="barra"><i style="width:${Math.min(100, res.pctMun)}%"></i></div></div>`);
   $("#fim-iptu").innerHTML = htmlIptu(C.c, m);
   mostrarTela("tela-fim");
   atividade();
@@ -1181,17 +1187,21 @@ function htmlIptu(cod, m) {
   const capital = cod === "4205407";
   const caso = ((CASOS && CASOS.cadastro) || []).find((c) => c.uf === "SC" && c.frase);
   const proprio = caso && caso.municipio === m.n;
-  const faixa = (a, b) => (b > a * 1.05 ? `+${reais(a)} a ${reais(b)} por ano` : `+${reais(a)} por ano`);
+  const pctTxt = (a, b) => (b > a ? `+${a}% a ${b}%` : `+${a}%`);
   let h = `<span class="chip">RAIO-X DO IPTU</span><h2>${esc(m.n)}</h2>`;
-  if (v && v.v) h += `<div class="linha-iptu"><span>IPTU arrecadado em ${v.a}</span><b>${reais(v.v)}</b></div>`;
+  if (pot) {
+    // simulação: IPTU de hoje × o aumento medido em recadastramentos reais (sem mudar alíquota)
+    const hoje = arredReais(v.v), ganho = arredReais(pot.ganhoMax), depois = hoje + ganho;
+    h += `<div class="linha-iptu"><span>IPTU arrecadado hoje (${v.a})</span><b>${reais(hoje)}</b></div>
+      <div class="ganho"><p class="ganho-rot">Mapeando 100% com a Autha-Geo, ${esc(m.n)} arrecadaria</p>
+      <div class="valor">${reais(depois)} por ano</div>
+      <p><b>${pctTxt(CASOS.min, CASOS.max)}</b> com o recadastramento (+${reais(ganho)} por ano), <b>sem aumentar alíquota</b>.
+      Valor simulado com o resultado de ${esc(CASOS.fonteCurta)}.</p></div>`;
+  } else if (v && v.v) h += `<div class="linha-iptu"><span>IPTU arrecadado em ${v.a}</span><b>${reais(v.v)}</b></div>`;
   if (proprio) h += `<p class="caso"><b>${esc(m.n)} já deu o primeiro passo:</b> ${esc(caso.frase)}. Agora é manter o cadastro vivo e pronto para o CIB.<small>Prefeitura de ${esc(caso.municipio)}</small></p>`;
   else if (caso) h += `<p class="caso"><b>Aqui na região:</b> ${esc(caso.municipio)} ${esc(caso.frase)}.<small>${caso.fonte_tipo === "prefeitura" ? "Prefeitura de " + esc(caso.municipio) : "fonte no relatório"}</small></p>`;
-  const mostraGanho = pot && !proprio && pot.ganhoMin >= 150000;
-  if (mostraGanho) {
-    h += `<div class="ganho"><div class="valor">${faixa(pot.ganhoMin, pot.ganhoMax)}</div>
-      <p>se ${esc(m.n)} repetir o resultado de ${esc(CASOS.fonteCurta)}, <b>sem aumentar alíquota</b>.</p></div>`;
-    h += `<div class="cib">${capital ? "O CIB das capitais já está valendo." : "CIB obrigatório para os imóveis urbanos a partir de janeiro de 2027."}</div>`;
-  } else {
+  if (pot) h += `<div class="cib">${capital ? "O CIB das capitais já está valendo." : "CIB obrigatório para os imóveis urbanos a partir de janeiro de 2027."}</div>`;
+  else {
     h += `<div class="ganho"><div class="valor">${capital ? "CIB: já está valendo" : "CIB: janeiro de 2027"}</div>
       <p>Todo imóvel urbano vai precisar do CIB, o cadastro no formato da Receita Federal. O Autha-Geo deixa o cadastro pronto para o SINTER.</p></div>`;
   }
@@ -1419,7 +1429,7 @@ $("#equipe").addEventListener("click", (e) => {
 function baixarCSV() {
   const cols = [["quando", "Data e hora"], ["municipio", "Município"], ["municipioCod", "Código IBGE"], ["nome", "Nome"], ["cargo", "Cargo"], ["whatsapp", "WhatsApp"],
     ["tributosNome", "Tributos - nome"], ["tributosWhats", "Tributos - WhatsApp"], ["engNome", "Engenheiro - nome"], ["engWhats", "Engenheiro - WhatsApp"],
-    ["pontos", "Pontos"], ["imoveis", "Imóveis cadastrados"], ["pct", "% da área de voo"], ["dourados", "Casas douradas (bônus do jogo)"], ["interesse", "Quer conversar?"], ["duracao", "Duração (s)"], ["consentimento", "Autorizou contato"]];
+    ["pontos", "Pontos"], ["imoveis", "Imóveis cadastrados"], ["pct", "% da área de voo"], ["pctMun", "% do município mapeado"], ["dourados", "Casas douradas (bônus do jogo)"], ["interesse", "Quer conversar?"], ["duracao", "Duração (s)"], ["consentimento", "Autorizou contato"]];
   const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const linhas = [cols.map((c) => q(c[1])).join(";")].concat(partidas().map((p) => cols.map(([k]) => q(k === "quando" ? new Date(p[k]).toLocaleString("pt-BR") : k === "consentimento" ? (p[k] ? "sim" : "") : typeof p[k] === "number" ? p[k].toLocaleString("pt-BR", { useGrouping: false }) : p[k])).join(";")));
   const blob = new Blob(["﻿" + linhas.join("\r\n")], { type: "text/csv;charset=utf-8" });

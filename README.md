@@ -18,13 +18,21 @@ Jogo de estande para a COMAC-SC 2026: o prefeito pilota um drone sobre a **próp
 As fichas e o ranking ficam no navegador do notebook (localStorage). **Baixe a planilha no fim de cada dia.**
 
 ## Regras do jogo
-- Bateria de 60 s. Cada marco de área cadastrada (5% a 90%) e o item bateria dão tempo extra, até no máximo +15 s (a fila anda).
+- Bateria de 60 s. O tempo extra vem das baterias achadas no mapa (+6 s cada); cada marco de área cadastrada (5% a 90%) dá só +1 s. Teto de +20 s (a fila anda). Com menos de 20 s, aparece o aviso e uma bateria perto do drone.
 - Cidade 100% cadastrada encerra o voo na hora, com bônus pelo tempo que sobrou. 15 s sem comando encerram o voo.
 - Só com o controle, na escolha da cidade: ← → troca a letra inicial, ↑ ↓ anda na lista.
 - Combo: cadastrar sem parar sobe o multiplicador até ×4.
 - Casa dourada: bônus do jogo (sorteada; não é um achado real).
-- Itens: bateria (+5 s) e sinal FIX (laser dobrado por 6 s). Urubu tira 2 s.
+- Itens: bateria (+6 s) e GPS (sinal FIX: laser dobrado por 6 s). Urubu tira 2 s.
 - A pontuação é proporcional à fração da cidade cadastrada, então cidade pequena e cidade grande disputam de igual para igual.
+- No resultado: "Você mapeou X% do município" (sobre todas as edificações do município) e a simulação do IPTU com 100% mapeado (IPTU de hoje × o aumento medido nos casos de recadastramento).
+
+## Publicação (GitHub Pages)
+O site sai do branch `gh-pages`, não do `main`:
+- raiz — v1, congelada como foi publicada em 30/10/2026 (commit `41ae177`): https://manoxande.github.io/voo-cadastral/
+- `v2/` — v2: https://manoxande.github.io/voo-cadastral/v2/
+
+O `main` é onde o jogo é desenvolvido. Para atualizar a v2, copie para `v2/` no `gh-pages` os arquivos do jogo do `main` (`index.html`, `jogo.js`, `estilo.css`, `relatorio.html`, `dados/`, `cidades/`, `marca/`).
 
 ## Dados
 | Arquivo | O que é | Como gerar |

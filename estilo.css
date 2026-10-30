@@ -211,9 +211,15 @@ body.toque .tecla, body.toque .dica-teclado { display: none; }   /* no celular n
 .fim .resumo { font-size: calc(var(--u) * 1.45); margin: calc(var(--u) * .8) 0 calc(var(--u) * .6); line-height: 1.35; }
 .fim .piada { color: var(--cinza); font-size: calc(var(--u) * 1); margin: 0 0 var(--u); line-height: 1.5; }
 .placar { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--u); }
-.placar div { background: var(--painel); border: 1px solid var(--linha); border-radius: 14px; padding: calc(var(--u) * .9) var(--u); box-shadow: inset 2px 0 0 var(--verde); }
+.placar > div { background: var(--painel); border: 1px solid var(--linha); border-radius: 14px; padding: calc(var(--u) * .9) var(--u); box-shadow: inset 2px 0 0 var(--verde); }
 .placar b { display: block; font-size: calc(var(--u) * 2.3); font-weight: 700; letter-spacing: -.03em; color: var(--verde); font-variant-numeric: tabular-nums; line-height: 1.1; }
 .placar span { color: var(--cinza); font-size: max(11px, calc(var(--u) * .85)); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
+/* "Você mapeou X% do município": o número que conversa com o Raio-X do IPTU ao lado */
+.placar .mapeou { grid-column: 1 / -1; border-color: var(--linha-verde); box-shadow: inset 2px 0 0 var(--verde), 0 0 50px -24px rgba(74,222,128,.6); }
+.placar .mapeou b { font-size: calc(var(--u) * 3.2); margin: .05em 0; }
+.placar .mapeou span { text-transform: none; letter-spacing: 0; font-size: calc(var(--u) * 1.05); color: #cbd5e1; }
+.placar .mapeou span:first-child { text-transform: uppercase; letter-spacing: .1em; font-size: max(11px, calc(var(--u) * .85)); color: var(--cinza); }
+.placar .mapeou .barra { margin-top: .6em; }
 .cartao-iptu { background: linear-gradient(160deg, rgba(15,23,42,.95), rgba(10,15,28,.95) 60%); border: 1px solid var(--linha-verde); border-radius: var(--raio);
   padding: calc(var(--u) * 1.4); box-shadow: 0 0 60px -20px rgba(74,222,128,.25); align-self: start; }
 .cartao-iptu .chip { font-size: max(11px, calc(var(--u) * .8)); font-weight: 600; letter-spacing: .18em; color: var(--verde); display: inline-flex; align-items: center; gap: .6em; }
@@ -225,6 +231,7 @@ body.toque .tecla, body.toque .dica-teclado { display: none; }   /* no celular n
 .ganho .valor { font-size: calc(var(--u) * 2.3); font-weight: 700; letter-spacing: -.03em; line-height: 1.1;
   background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .ganho p { margin: .4em 0 0; font-size: calc(var(--u) * 1); color: #cbd5e1; line-height: 1.5; }
+.ganho .ganho-rot { margin: 0 0 .2em; font-family: var(--display); font-weight: 600; font-size: calc(var(--u) * 1.1); color: var(--branco); }
 .ganho p b { color: var(--branco); }
 .nota { font-size: max(11px, calc(var(--u) * .8)); color: var(--cinza2); margin-top: var(--u); line-height: 1.5; }
 .cib { margin-top: var(--u); padding: .6em .9em; border-radius: 12px; background: rgba(74,222,128,.08); border: 1px solid var(--linha-verde);
@@ -312,6 +319,12 @@ body.em-voo #btn-equipe { display: none; }
   #abertura .a2 { font-size: calc(var(--u) * 3.4); }
   #abertura .a3 { font-size: calc(var(--u) * .95); }
   .lista-cidades li { flex-direction: column; align-items: flex-start; justify-content: center; gap: .1em; }
+  /* resultado no celular: o "arrecadaria R$ ..." precisa aparecer logo, sem muita rolagem */
+  #fim-piada, .cartao-iptu h2 { display: none; }
+  .fim h1 { font-size: calc(var(--u) * 2.6); }
+  .placar > div { padding: calc(var(--u) * .7) calc(var(--u) * .85); }
+  .placar b { font-size: calc(var(--u) * 1.8); }
+  .placar .mapeou b { font-size: calc(var(--u) * 2.6); }
   .bloco { grid-template-columns: 1fr; }
   .numeros { grid-template-columns: repeat(2, 1fr); }
   .som-aviso { display: none; }
