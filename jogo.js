@@ -228,11 +228,12 @@ function montarCidade(c) {
 
 /* ============================== camadas desenhadas uma vez (fora da tela) ============================== */
 const GROSSO = matchMedia("(pointer: coarse)").matches;
+if (GROSSO) document.body.classList.add("toque");
 const TAM = GROSSO ? 2048 : 4096, TAM_RASTRO = 1024;
 const cvPredios = document.createElement("canvas"); cvPredios.width = cvPredios.height = TAM;
 const cvRastro = document.createElement("canvas"); cvRastro.width = cvRastro.height = TAM_RASTRO;
 const ctxP = cvPredios.getContext("2d"), ctxR = cvRastro.getContext("2d");
-const COR = { predio: "#34425a", feito: "#4ddf84", ouro: "#fbbf24", limite: "rgba(92,215,179,.55)" };
+const COR = { predio: "#334155", feito: "#4ADE80", ouro: "#FBBF24", limite: "rgba(110,231,183,.5)" };   // verde e menta da marca Autha
 
 function desenharBase(C) {
   const k = TAM / C.L;
@@ -434,14 +435,14 @@ function escanear(x1, y1, x2, y2, dt) {
   }
   // rastro: a faixa já varrida pelo laser
   const kr = TAM_RASTRO / C.L;
-  ctxR.strokeStyle = "#4ddf84"; ctxR.lineCap = "round"; ctxR.lineWidth = 2 * r * kr;
+  ctxR.strokeStyle = "#4ADE80"; ctxR.lineCap = "round"; ctxR.lineWidth = 2 * r * kr;
   ctxR.beginPath(); ctxR.moveTo(x1 * kr, y1 * kr); ctxR.lineTo(x2 * kr + 0.01, y2 * kr); ctxR.stroke();
   if (J.demo) { J.cadastrados += achados; return; }
   // combo: cadastrar sem parar sobe o multiplicador
   if (achados) { J.comboT += dt; J.ultimoAchado = J.decorrido; }
   else if (J.decorrido - J.ultimoAchado > 1.6) J.comboT = 0;
   const novoCombo = J.comboT >= 7 ? 4 : J.comboT >= 4 ? 3 : J.comboT >= 2 ? 2 : 1;
-  if (novoCombo > J.combo) { Som.poder(); flutuar(J.drone.x, J.drone.y, `COMBO ×${novoCombo}`, "#fbbf24", 1.4); }
+  if (novoCombo > J.combo) { Som.poder(); flutuar(J.drone.x, J.drone.y, `COMBO ×${novoCombo}`, "#FBBF24", 1.4); }
   J.combo = novoCombo;
   if (achados) {
     pontosAqui = achados * E.pontoBase * J.combo;
@@ -453,7 +454,7 @@ function escanear(x1, y1, x2, y2, dt) {
     pontosAqui += bonus;
     J.dourados += ouro;
     Som.dourado();
-    flutuar(J.drone.x, J.drone.y - E.raio * 0.6, `Área fora do cadastro! +${milhar(bonus)}`, "#fbbf24", 1.6);
+    flutuar(J.drone.x, J.drone.y - E.raio * 0.6, `Área fora do cadastro! +${milhar(bonus)}`, "#FBBF24", 1.6);
   }
   J.pontos += pontosAqui;
   verificarMarcos();
@@ -489,8 +490,8 @@ function atualizarPoderes(dt) {
     if (Math.hypot(p.x - d.x, p.y - d.y) < E.vista * 0.06) {
       p.vida = -1;
       Som.poder();
-      if (p.tipo === "bateria") { J.tempo += 5; flutuar(p.x, p.y, "+5 s de bateria", "#4ddf84", 1.3); }
-      else { J.fixAte = J.decorrido + 6; flutuar(p.x, p.y, "Sinal FIX: laser dobrado!", "#5cd7b3", 1.5); }
+      if (p.tipo === "bateria") { J.tempo += 5; flutuar(p.x, p.y, "+5 s de bateria", "#4ADE80", 1.3); }
+      else { J.fixAte = J.decorrido + 6; flutuar(p.x, p.y, "Sinal FIX: laser dobrado!", "#6EE7B7", 1.5); }
       for (let k = 0; k < 14; k++) poeira(p.x, p.y, p.tipo === "bateria" ? "verde" : "menta");
     }
   }
@@ -597,8 +598,8 @@ function desenhar(tempo) {
     if (J.dourado[i] !== 1) continue;
     const x = sx(C.bx[i]), y = sy(C.by[i]);
     if (x < -50 || y < -50 || x > W + 50 || y > H + 50) continue;
-    const s = Math.max(5 * DPR, C.bs[i] * esc * 0.9);
-    ctx.globalAlpha = 0.25 * pulso; ctx.beginPath(); ctx.arc(x, y, s * 1.6 + 6 * DPR, 0, 7); ctx.fill();
+    const s = Math.max(Math.min(W, H) * 0.0045, C.bs[i] * esc * 0.9);
+    ctx.globalAlpha = 0.22 * pulso; ctx.beginPath(); ctx.arc(x, y, s * 1.5 + Math.min(W, H) * 0.004, 0, 7); ctx.fill();
     ctx.globalAlpha = 1; ctx.fillRect(x - s / 2, y - s / 2, s, s);
   }
   ctx.globalAlpha = 1;
@@ -610,7 +611,7 @@ function desenhar(tempo) {
   for (const p of J.part) {
     const a = clamp(p.vida / p.max, 0, 1);
     ctx.globalAlpha = a;
-    ctx.fillStyle = p.tipo === "ouro" ? "#fbbf24" : p.tipo === "menta" ? "#5cd7b3" : "#4ddf84";
+    ctx.fillStyle = p.tipo === "ouro" ? "#FBBF24" : p.tipo === "menta" ? "#6EE7B7" : "#4ADE80";
     const s = (p.tipo === "ouro" ? 6 : 3.5) * DPR;
     ctx.fillRect(sx(p.x) - s / 2, sy(p.y) - s / 2, s, s);
   }
@@ -628,7 +629,7 @@ function desenhar(tempo) {
   for (const t of J.textos) {
     const a = clamp(t.vida / t.max * 1.6, 0, 1);
     ctx.globalAlpha = a;
-    ctx.font = `900 ${Math.round(Math.min(W, H) * 0.032)}px "Segoe UI", system-ui, sans-serif`;
+    ctx.font = `700 ${Math.round(Math.min(W, H) * 0.032)}px "Atyp Display", "Segoe UI", system-ui, sans-serif`;
     ctx.lineWidth = 5 * DPR; ctx.strokeStyle = "rgba(3,7,18,.85)";
     ctx.strokeText(t.txt, sx(t.x), sy(t.y)); ctx.fillStyle = t.cor; ctx.fillText(t.txt, sx(t.x), sy(t.y));
   }
@@ -637,7 +638,7 @@ function desenhar(tempo) {
 
 function desenharLaser(x, y, ang, r, tempo, fix, alt) {
   if (alt < 0.3) return;
-  const cor = fix ? "92,215,179" : "255,59,107";
+  const cor = fix ? "110,231,183" : "255,59,107";
   const nx = -Math.sin(ang), ny = Math.cos(ang);        // perpendicular ao rumo
   const tras = r * 0.3, cx = x - Math.cos(ang) * tras, cy = y - Math.sin(ang) * tras;
   const ax = cx + nx * r, ay = cy + ny * r, bx = cx - nx * r, by = cy - ny * r;
@@ -691,7 +692,7 @@ function desenharDrone(x, y, d, tempo) {
   ctx.fillStyle = "#e2e8f0";
   ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-T * 0.22, -T * 0.32, T * 0.44, T * 0.64, T * 0.12) : ctx.rect(-T * 0.22, -T * 0.32, T * 0.44, T * 0.64); ctx.fill();
   ctx.fillStyle = "#0f172a"; ctx.beginPath(); ctx.arc(0, -T * 0.2, T * 0.09, 0, 7); ctx.fill();   // câmera/sensor
-  ctx.fillStyle = "#4ddf84"; ctx.beginPath(); ctx.arc(-T * 0.13, -T * 0.3, T * 0.04, 0, 7); ctx.arc(T * 0.13, -T * 0.3, T * 0.04, 0, 7); ctx.fill();
+  ctx.fillStyle = "#4ADE80"; ctx.beginPath(); ctx.arc(-T * 0.13, -T * 0.3, T * 0.04, 0, 7); ctx.arc(T * 0.13, -T * 0.3, T * 0.04, 0, 7); ctx.fill();
   ctx.fillStyle = Math.sin(tempo * 8) > 0 ? "#ff3b6b" : "#7f1d1d"; ctx.beginPath(); ctx.arc(0, T * 0.27, T * 0.045, 0, 7); ctx.fill();
   ctx.restore();
 }
@@ -700,7 +701,7 @@ function desenharPoder(x, y, p, tempo) {
   const R = Math.min(W, H) * 0.028 * (1 + 0.08 * Math.sin(tempo * 6));
   const pisca = p.vida < 2.5 && Math.sin(tempo * 20) > 0;
   if (pisca) return;
-  const cor = p.tipo === "bateria" ? "#4ddf84" : "#5cd7b3";
+  const cor = p.tipo === "bateria" ? "#4ADE80" : "#6EE7B7";
   ctx.fillStyle = "rgba(3,7,18,.75)"; ctx.strokeStyle = cor; ctx.lineWidth = 3 * DPR;
   ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.fill(); ctx.stroke();
   ctx.fillStyle = cor;
@@ -708,7 +709,7 @@ function desenharPoder(x, y, p, tempo) {
     ctx.fillRect(x - R * 0.42, y - R * 0.25, R * 0.75, R * 0.5);
     ctx.fillRect(x + R * 0.35, y - R * 0.12, R * 0.12, R * 0.24);
   } else {
-    ctx.font = `900 ${Math.round(R * 0.62)}px "Segoe UI", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `700 ${Math.round(R * 0.62)}px "Atyp Display", "Segoe UI", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText("FIX", x, y + 1); ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
   }
 }
@@ -805,7 +806,7 @@ async function irInicio() {
   $("#pausa").classList.remove("ativo");
   J.estado = "inicio";
   mostrarTela("tela-inicio");
-  $("#premio-inicio").textContent = cfg.premio ? "🏆 Prêmio do dia: " + cfg.premio : "";
+  $("#premio-inicio").textContent = cfg.premio || "";
   $("#ranking-inicio").innerHTML = htmlRanking(null, 6);
   atualizarCTA(); atualizarAvisoSom();
   // voo de demonstração ao fundo
@@ -915,11 +916,14 @@ function htmlIptu(cod, m) {
   h += `<div class="linha-iptu"><span>Edificações vistas por satélite</span><b>${milhar(m.edif)}</b></div>`;
   if (v && v.v) {
     h += `<div class="linha-iptu"><span>IPTU arrecadado em ${v.a}</span><b>${reais(v.v)}</b></div>`;
-    h += `<div class="linha-iptu"><span>IPTU por habitante · mediana de SC (${esc(v.porte)})</span><b>${rs(v.pc)} · ${rs(v.pcMed)}</b></div>`;
+    h += `<div class="linha-iptu"><span>IPTU por habitante</span><b>${rs(v.pc)}</b></div>`;
+    h += `<div class="linha-iptu"><span>Mediana de SC (${esc(v.porte)})</span><b>${rs(v.pcMed)}</b></div>`;
   }
   if (pot && pot.tipo === "casos") {
     h += `<div class="ganho"><div class="valor">+${reais(pot.ganhoMin)} a ${reais(pot.ganhoMax)} por ano</div>
-      <p>é o que o IPTU de ${esc(m.n)} subiria repetindo o resultado de municípios que fizeram recadastramento (+${CASOS.min}% a +${CASOS.max}%), <b>sem aumentar alíquota</b>.</p></div>`;
+      <p>é o que o IPTU de ${esc(m.n)} subiria repetindo o recadastramento de ${esc(CASOS.fonteCurta)}, <b>sem aumentar alíquota</b>.</p></div>`;
+    const viz = (CASOS.cadastro || []).find((c) => c.uf === "SC" && c.frase);
+    if (viz) h += `<p class="caso"><b>Caso da região:</b> ${esc(viz.municipio)} ${esc(viz.frase)}.<small>${viz.fonte_tipo === "prefeitura" ? "Prefeitura de " + esc(viz.municipio) : "fonte no relatório"}</small></p>`;
   } else if (pot) {
     h += `<div class="ganho"><div class="valor">+${reais(pot.ganhoMin)} por ano</div>
       <p>se ${esc(m.n)} arrecadasse por habitante o mesmo que a mediana dos municípios de SC do mesmo porte. Cadastro atualizado é o primeiro passo, e não depende de lei nova.</p></div>`;
@@ -987,7 +991,7 @@ function irRankingFinal(r) {
   J.estado = "ranking";
   const pos = posicaoHoje(r);
   $("#final-titulo").textContent = pos === 1 ? `${r.nome.split(" ")[0]}, você está em 1º lugar!` : `${r.nome.split(" ")[0]}, você está em ${pos}º lugar!`;
-  $("#final-texto").innerHTML = `O relatório <b>IPTU atual × potencial</b> de ${esc(r.municipio)} vai para o seu WhatsApp. ${cfg.premio ? "🏆 Prêmio do dia: " + esc(cfg.premio) + "." : ""}`;
+  $("#final-texto").innerHTML = `O relatório <b>IPTU atual × potencial</b> de ${esc(r.municipio)} vai para o seu WhatsApp. ${cfg.premio ? "Prêmio do dia: " + esc(cfg.premio) + "." : ""}`;
   $("#ranking-final").innerHTML = htmlRanking(r.id, 10);
   mostrarTela("tela-ranking");
 }
@@ -1127,5 +1131,7 @@ function baixarCSV() {
 }
 
 /* ============================== partida ============================== */
+// fontes da marca (Atyp) carregadas antes do primeiro texto no canvas
+if (document.fonts) ["700 20px \"Atyp Display\"", "600 20px \"Atyp Display\""].forEach((f) => document.fonts.load(f));
 irInicio();
 requestAnimationFrame(quadro);

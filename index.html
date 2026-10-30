@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#030712">
 <title>Voo Cadastral · Autha-Geo</title>
+<link rel="icon" href="marca/icone-autha.png">
 <link rel="stylesheet" href="estilo.css">
 </head>
 <body>
@@ -13,12 +14,13 @@
 <!-- 1. tela inicial (com voo de demonstração ao fundo) -->
 <section class="tela ativa" id="tela-inicio">
   <div class="inicio-topo">
-    <div class="marca">Autha<span>-Geo</span></div>
-    <div class="som-aviso" id="som-aviso">🔇 Clique uma vez na tela para ligar o som</div>
+    <div class="marca"><img src="marca/logo-autha-branco.png" alt="Autha"><span class="produto grad">Autha-Geo</span></div>
+    <div class="som-aviso" id="som-aviso">Som desligado · clique uma vez na tela para ligar</div>
   </div>
   <div class="inicio-meio">
     <div>
-      <h1 class="titulo-jogo">Voo<span>Cadastral</span></h1>
+      <div class="sobre">COMAC-SC 2026 · desafio do prefeito</div>
+      <h1 class="titulo-jogo">Voo<span class="grad">Cadastral.</span></h1>
       <p class="sub-jogo">Pilote o drone sobre a <b>sua cidade</b> e dispare o laser cadastral. Quanto mais imóveis cadastrar, mais pontos no <b>Ranking COMAC</b>.</p>
       <div class="cta" id="cta-inicio">Aperte A para começar</div>
       <div class="premio" id="premio-inicio"></div>
@@ -30,6 +32,7 @@
 <!-- 2. escolher a cidade -->
 <section class="tela vidro" id="tela-cidade">
   <div class="caixa">
+    <div class="sobre">Passo 1 de 2</div>
     <h2>Qual é a sua cidade?</h2>
     <input class="busca" id="busca" placeholder="Digite o nome do município" autocomplete="off" spellcheck="false">
     <ul class="lista-cidades" id="lista-cidades"></ul>
@@ -41,6 +44,7 @@
 <div id="hud">
   <div class="hud-topo">
     <div class="hud-bloco hud-esq">
+      <div class="hud-marca"><img src="marca/icone-autha.png" alt="">Autha-Geo · voo cadastral</div>
       <div id="hud-cidade">—</div>
       <div class="hud-rot">imóveis cadastrados</div>
       <div class="hud-num verde" id="hud-imoveis">0</div>
@@ -78,7 +82,9 @@
 <!-- 4. resultado -->
 <section class="tela vidro" id="tela-fim">
   <div class="fim">
+    <div class="marca peq"><img src="marca/logo-autha-branco.png" alt="Autha"><span class="produto grad">Autha-Geo</span></div>
     <div>
+      <div class="sobre">Resultado do voo</div>
       <h1 id="fim-titulo">Missão cumprida!</h1>
       <p class="resumo" id="fim-resumo"></p>
       <p class="piada" id="fim-piada"></p>
@@ -96,6 +102,9 @@
 <!-- 5. ficha (ranking + relatório) -->
 <section class="tela vidro" id="tela-ficha">
   <form class="ficha" id="ficha" autocomplete="off" onsubmit="return false">
+    <div class="marca peq"><img src="marca/logo-autha-branco.png" alt="Autha"><span class="produto grad">Autha-Geo</span></div>
+    <div class="filete"></div>
+    <div class="sobre">Passo final</div>
     <h2>Ranking COMAC + relatório do IPTU</h2>
     <p class="sub" id="ficha-sub"></p>
     <p class="dica-equipe">Equipe: antes de salvar, peça também o contato do <u>tributos</u> e do <u>engenheiro</u> da prefeitura.</p>
@@ -123,6 +132,7 @@
 <!-- 6. ranking final -->
 <section class="tela vidro" id="tela-ranking">
   <div class="final">
+    <div class="marca"><img src="marca/logo-autha-branco.png" alt="Autha"><span class="produto grad">Autha-Geo</span></div>
     <h2 id="final-titulo">Você está no ranking!</h2>
     <p id="final-texto"></p>
     <div class="ranking" id="ranking-final"></div>

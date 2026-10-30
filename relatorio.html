@@ -4,46 +4,65 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Relatório IPTU atual × potencial · Autha-Geo</title>
+<link rel="icon" href="marca/icone-autha.png">
 <style>
+  /* Identidade Autha, regime PAPEL (documento para imprimir/mandar em PDF): Atyp, tinta #0F1115, verde #16A34A/#15803D */
+  @font-face { font-family: "Atyp Display"; font-weight: 600; src: url("marca/fontes/AtypDisplay-Semibold.woff2") format("woff2"); }
+  @font-face { font-family: "Atyp Display"; font-weight: 700; src: url("marca/fontes/AtypDisplay-Bold.woff2") format("woff2"); }
+  @font-face { font-family: "Atyp Text"; font-weight: 400; src: url("marca/fontes/AtypText-Regular.woff2") format("woff2"); }
+  @font-face { font-family: "Atyp Text"; font-weight: 600; src: url("marca/fontes/AtypText-Semibold.woff2") format("woff2"); }
   @page { size: A4; margin: 0; }
-  :root { --verde: #1f9d57; --verde2: #4ddf84; --tinta: #0f172a; --cinza: #475569; --linha: #e2e8f0; --fundo: #030712; }
+  :root { --ink: #0F1115; --ink2: #2A3140; --ink3: #5C6577; --miuda: #697387; --verde: #16A34A; --verde-tinta: #15803D; --verde-fundo: #ECFDF2;
+    --logo: #45D88A; --creme: #FAFAF6; --fio: #E6E3DC; --mesa: #F4F2EC; --fundo: #030712;
+    --display: "Atyp Display", "Segoe UI", Arial, sans-serif; --texto: "Atyp Text", "Segoe UI", Arial, sans-serif; }
   * { box-sizing: border-box; }
-  body { margin: 0; background: #cbd5e1; font-family: "Segoe UI", system-ui, Arial, sans-serif; color: var(--tinta); }
-  .barra { position: sticky; top: 0; display: flex; gap: 10px; justify-content: center; padding: 10px; background: #0b1220; }
-  .barra button { font: inherit; font-weight: 700; padding: 8px 18px; border-radius: 99px; border: 0; background: var(--verde2); color: #04120a; cursor: pointer; }
-  .barra span { color: #cbd5e1; align-self: center; font-size: 14px; }
-  .folha { width: 210mm; min-height: 297mm; margin: 12px auto; background: #fff; padding: 14mm 15mm 12mm; position: relative; }
-  .topo { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid var(--verde2); padding-bottom: 6mm; }
-  .marca { font-weight: 900; font-size: 22px; } .marca span { color: var(--verde); }
-  .topo .direita { text-align: right; font-size: 12px; color: var(--cinza); }
-  h1 { font-size: 27px; margin: 6mm 0 1mm; line-height: 1.1; }
-  .para { font-size: 14px; color: var(--cinza); margin: 0 0 5mm; }
-  .grade { display: grid; grid-template-columns: 78mm 1fr; gap: 6mm; }
-  .mapa { width: 78mm; height: 78mm; border-radius: 10px; background: var(--fundo); display: block; }
-  .legenda-mapa { font-size: 10px; color: var(--cinza); margin-top: 1.5mm; }
+  body { margin: 0; background: var(--mesa); font-family: var(--texto); color: var(--ink2); }
+  b { font-weight: 600; color: var(--ink); }
+  .barra { position: sticky; top: 0; display: flex; gap: 12px; justify-content: center; padding: 10px; background: #0A0F1C; z-index: 2; }
+  .barra button { font-family: var(--display); font-weight: 600; font-size: 15px; padding: 9px 20px; border-radius: 99px; border: 0;
+    background: linear-gradient(135deg, #4ADE80, #6EE7B7); color: #0A0F1C; cursor: pointer; }
+  .barra span { color: #94A3B8; align-self: center; font-size: 14px; }
+  .folha { width: 210mm; min-height: 297mm; margin: 14px auto; background: #fff; padding: 13mm 15mm 11mm; position: relative;
+    box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 30px 60px -30px rgba(15,17,21,.18); }
+  .timbre { display: flex; justify-content: space-between; align-items: center; }
+  .timbre img { height: 11mm; }
+  .timbre .rotulo { text-align: right; font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--miuda); line-height: 1.6; }
+  .filete { height: 2px; background: linear-gradient(90deg, var(--verde) 0 60mm, var(--ink) 60mm); margin: 4mm 0 7mm; }
+  .sobre { font-size: 10px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--verde-tinta); display: flex; align-items: center; gap: 8px; }
+  .sobre::before { content: ""; width: 7mm; height: 2px; background: var(--verde); }
+  h1 { font-family: var(--display); font-weight: 700; font-size: 30px; letter-spacing: -.02em; color: var(--ink); margin: 2.5mm 0 1.5mm; line-height: 1.05; }
+  h1 span { color: var(--verde-tinta); }
+  .para { font-size: 13px; color: var(--ink3); margin: 0 0 6mm; }
+  .grade { display: grid; grid-template-columns: 76mm 1fr; gap: 6mm; }
+  .mapa { width: 76mm; height: 76mm; border-radius: 6px; background: var(--fundo); display: block; }
+  .legenda-mapa { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--miuda); margin-top: 2mm; line-height: 1.5; }
   .numeros { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; align-content: start; }
-  .num { border: 1px solid var(--linha); border-radius: 8px; padding: 3mm; }
-  .num b { display: block; font-size: 21px; color: var(--verde); line-height: 1.1; }
-  .num span { font-size: 11.5px; color: var(--cinza); }
-  h2 { font-size: 16px; margin: 7mm 0 2.5mm; padding-bottom: 1.5mm; border-bottom: 1px solid var(--linha); }
-  p, li { font-size: 12.5px; line-height: 1.45; }
-  .destaque { background: #ecfdf3; border: 1px solid #a7f3c4; border-radius: 10px; padding: 4mm 5mm; margin: 3mm 0; }
-  .destaque .valor { font-size: 25px; font-weight: 900; color: var(--verde); }
+  .num { background: var(--creme); border-left: 2px solid var(--verde); padding: 3mm 3.5mm; }
+  .num b { display: block; font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: -.01em; color: var(--verde-tinta); line-height: 1.1; }
+  .num span { font-size: 11px; color: var(--ink3); line-height: 1.4; display: block; margin-top: 1mm; }
+  h2 { font-family: var(--display); font-weight: 700; font-size: 17px; letter-spacing: -.01em; color: var(--ink); margin: 8mm 0 3mm; display: flex; align-items: center; gap: 3mm; }
+  h2 .n { width: 7mm; height: 7mm; border-radius: 50%; background: var(--logo); color: var(--ink); font-size: 12px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  p, li { font-size: 12.5px; line-height: 1.55; }
+  .destaque { background: var(--verde-fundo); border-left: 3px solid var(--verde); padding: 4mm 5mm; margin: 3mm 0; }
+  .destaque .valor { font-family: var(--display); font-weight: 700; font-size: 25px; color: var(--verde-tinta); letter-spacing: -.01em; }
   .destaque p { margin: 1mm 0 0; }
-  table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  th, td { text-align: left; padding: 1.6mm 1.5mm; border-bottom: 1px solid var(--linha); vertical-align: top; }
-  th { color: var(--cinza); font-weight: 700; }
-  td a { color: var(--verde); word-break: break-all; }
-  .comparacao { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
-  .barra-comp { height: 5mm; background: #f1f5f9; border-radius: 99px; overflow: hidden; margin: 1mm 0 0.5mm; }
-  .barra-comp i { display: block; height: 100%; background: var(--verde2); }
-  .barra-comp.med i { background: #94a3b8; }
+  table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+  th, td { text-align: left; padding: 1.6mm 1.5mm; border-bottom: 1px solid var(--fio); vertical-align: top; }
+  th { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--miuda); font-weight: 600; border-bottom: 1px solid var(--ink); }
+  td a { color: var(--verde-tinta); word-break: break-all; }
+  .comparacao { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .comparacao > div > b { font-family: var(--display); }
+  .barra-comp { height: 4.5mm; background: #F1F0EA; border-radius: 99px; overflow: hidden; margin: 1.2mm 0 .5mm; }
+  .barra-comp i { display: block; height: 100%; background: var(--logo); }
+  .barra-comp.med i { background: #A8B0BE; }
   ol.passos { padding-left: 5mm; margin: 0; }
-  .rodape { margin-top: 6mm; border-top: 1px solid var(--linha); padding-top: 3mm; display: flex; justify-content: space-between; font-size: 11px; color: var(--cinza); }
-  .rodape b { color: var(--tinta); }
-  .nota { font-size: 10px; color: var(--cinza); line-height: 1.4; }
+  ol.passos li { margin-bottom: 1mm; }
+  .rodape { margin-top: 7mm; border-top: 1px solid var(--fio); padding-top: 3mm; display: flex; justify-content: space-between; gap: 4mm;
+    font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--miuda); }
+  .nota { font-size: 9.5px; color: var(--ink3); line-height: 1.5; }
+  .nota a { color: var(--verde-tinta); }
   .erro { padding: 40px; font-size: 18px; }
-  @media print { body { background: #fff; } .barra { display: none; } .folha { margin: 0; box-shadow: none; page-break-after: always; } }
+  @media print { body { background: #fff; } .barra { display: none; } .folha { margin: 0; box-shadow: none; } }
 </style>
 </head>
 <body>
@@ -77,8 +96,10 @@ function montar() {
   const data = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
   const para = nome ? `Preparado para <b>${esc(nome)}</b>${cargo ? ", " + esc(cargo) : ""} · ${esc(M.n)} · ${data}` : `${esc(M.n)} · ${data}`;
   let h = `<div class="folha">
-    <div class="topo"><div class="marca">Autha<span>-Geo</span></div><div class="direita">Relatório Voo Cadastral · COMAC-SC 2026<br>Raio-X do IPTU municipal</div></div>
-    <h1>IPTU atual × potencial<br>${esc(M.n)}</h1>
+    <div class="timbre"><img src="marca/logo-autha-papel.png" alt="Autha Engenharia e Mapeamento"><div class="rotulo">Autha-Geo · Raio-X do IPTU<br>Voo Cadastral · COMAC-SC 2026</div></div>
+    <div class="filete"></div>
+    <div class="sobre">Relatório para a prefeitura</div>
+    <h1>IPTU atual × potencial<br><span>${esc(M.n)}.</span></h1>
     <p class="para">${para}</p>
     <div class="grade">
       <div><canvas class="mapa" id="mapa" width="900" height="900"></canvas>
@@ -94,7 +115,7 @@ function montar() {
   if (V) {
     const maxPc = Math.max(V.pc, V.pcMed), maxPe = Math.max(V.pe, V.peMed);
     const varia = V.v24 && V.b ? (V.b / V.v24 - 1) * 100 : null;
-    h += `<h2>1. O IPTU hoje, comparado com municípios do mesmo porte</h2>
+    h += `<h2><span class="n">1</span>O IPTU hoje, comparado com municípios do mesmo porte</h2>
       <p>${esc(M.n)} arrecadou <b>${reaisCheio(V.v)}</b> de IPTU em ${V.a}${varia !== null ? ` (${varia >= 0 ? "+" : ""}${varia.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% sobre ${V.a - 1}, valor bruto)` : ""}.
       Abaixo, a comparação com a mediana dos <b>${V.nPorte} municípios catarinenses de ${esc(V.porte)}</b>: metade deles arrecada mais que a mediana, metade menos.</p>
       <div class="comparacao">
@@ -111,15 +132,23 @@ function montar() {
   }
 
   if (V && CASOS) {
-    h += `<h2>2. O que municípios que recadastraram conseguiram</h2>
+    const pct = (x) => Number(x).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+    const fonte = (c) => `<a href="${esc(c.fonte_url)}">${esc(c.fonte_titulo || c.fonte_url)}</a>`;
+    h += `<h2><span class="n">2</span>O que municípios que recadastraram conseguiram</h2>
       <div class="destaque"><div class="valor">+${reais(V.v * CASOS.min / 100)} a +${reais(V.v * CASOS.max / 100)} por ano</div>
-      <p>é o que o IPTU de ${esc(M.n)} subiria repetindo o resultado dos casos abaixo (de +${CASOS.min}% a +${CASOS.max}%, a mediana dos casos), <b>sem aumentar alíquota</b>: só levando para o cadastro o que já está construído.</p></div>
+      <p>é o que o IPTU de ${esc(M.n)} subiria repetindo os casos de ${esc(CASOS.fonteCurta)}: recadastramento <b>sem nova planta de valores e sem aumentar alíquota</b>, só levando para o cadastro o que já está construído.</p></div>
+      <p><b>Receita de IPTU, antes × depois</b></p>
       <table><tr><th>Município</th><th>O que mudou</th><th>Aumento</th><th>Fonte</th></tr>
-      ${CASOS.casos.map((c) => `<tr><td><b>${esc(c.municipio)}/${esc(c.uf)}</b><br>${esc(c.ano || "")}</td><td>${esc(c.o_que_mede)}: ${esc(c.antes)} → ${esc(c.depois)}<br><small>${esc(c.como_fizeram || "")}</small></td><td><b>+${Number(c.aumento_pct).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</b></td><td><a href="${esc(c.fonte_url)}">${esc(c.fonte_titulo || c.fonte_url)}</a></td></tr>`).join("")}
-      </table>`;
+      ${CASOS.casos.map((c) => `<tr><td><b>${esc(c.municipio)}/${esc(c.uf)}</b><br>${esc(c.ano || "")}</td><td>${esc(c.o_que_mede)}: ${esc(c.antes)} → ${esc(c.depois)}</td><td><b>+${pct(c.aumento_pct)}%</b></td><td>${fonte(c)}</td></tr>`).join("")}
+      </table>
+      <p style="margin-top:4mm"><b>O que o recadastramento achou no cadastro</b></p>
+      <table><tr><th>Município</th><th>Achado</th><th>Fonte</th></tr>
+      ${CASOS.cadastro.map((c) => `<tr><td><b>${esc(c.municipio)}/${esc(c.uf)}</b><br>${esc(c.ano || "")}</td><td>${esc(c.depois)}${c.antes && c.antes !== "n/d" ? `<br><small>antes: ${esc(c.antes)}</small>` : ""}</td><td>${fonte(c)}</td></tr>`).join("")}
+      </table>
+      ${CASOS.estudos && CASOS.estudos.length ? `<p class="nota" style="margin-top:3mm"><b>No Brasil:</b> ${CASOS.estudos.map((e) => `“${esc(e.trecho)}” (<a href="${esc(e.fonte_url)}">${esc(e.fonte)}</a>)`).join(" · ")}</p>` : ""}`;
   }
 
-  h += `<h2>${V && CASOS ? 3 : V ? 2 : 1}. Como a Autha faz</h2>
+  h += `<h2><span class="n">${V && CASOS ? 3 : V ? 2 : 1}</span>Como a Autha faz</h2>
     <ol class="passos">
       <li><b>Voo de drone</b> com ortofoto de 5 cm e laser (LiDAR): cada telhado medido, inclusive sob árvore.</li>
       <li><b>Vetorização</b> das edificações e confronto com o cadastro imobiliário: aparece a área construída que não está lançada.</li>
@@ -128,7 +157,7 @@ function montar() {
     </ol>
     <p class="nota" style="margin-top:6mm">Fontes: edificações — Overture Maps Foundation, release 2026-10-21.0 (inclui Google Open Buildings, Microsoft e OpenStreetMap), cruzadas com os setores censitários do IBGE 2022; população — IBGE, Censo 2022; IPTU — Tesouro Nacional, Siconfi, Declaração de Contas Anuais (Anexo I-C, conta 1.1.1.2.50, receita líquida)${CASOS ? "; casos de recadastramento — fontes indicadas na tabela" : ""}.
     Prédio com vários apartamentos conta como 1 edificação; galpões e aviários entram na contagem. Este relatório é uma estimativa para conversa e não é lançamento de imposto: o potencial real depende do cadastro, da planta de valores e da legislação de cada município.</p>
-    <div class="rodape"><span><b>Autha-Geo</b> · cadastro, mapa e CIB para prefeituras</span><span><b>(49) 99971-9388</b> · authamapeamento@gmail.com</span></div>
+    <div class="rodape"><span><b>Autha-Geo</b> · gestão territorial simplificada</span><span><b>(49) 99971-9388</b> · authamapeamento@gmail.com · autha.eng.br</span></div>
   </div>`;
   document.getElementById("paginas").innerHTML = h;
   desenharMapa();
@@ -139,15 +168,15 @@ window.carregarCidade = (c) => {
   const cv = document.getElementById("mapa"); if (!cv) return;
   const g = cv.getContext("2d"), S = cv.width, bin = atob(c.b), n = bin.length / 5;
   g.fillStyle = "#030712"; g.fillRect(0, 0, S, S);
-  g.strokeStyle = "rgba(92,215,179,.6)"; g.lineWidth = 2;
+  g.strokeStyle = "rgba(110,231,183,.6)"; g.lineWidth = 2;
   for (const anel of c.limite) { g.beginPath(); anel.forEach(([x, y], i) => (i ? g.lineTo(x * S, y * S) : g.moveTo(x * S, y * S))); g.stroke(); }
-  g.fillStyle = "#4ddf84";
+  g.fillStyle = "#4ADE80";
   for (let i = 0, o = 0; i < n; i++, o += 5) {
     const x = ((bin.charCodeAt(o) | (bin.charCodeAt(o + 1) << 8)) / 65535) * S, y = ((bin.charCodeAt(o + 2) | (bin.charCodeAt(o + 3) << 8)) / 65535) * S;
     const s = Math.max(1, (bin.charCodeAt(o + 4) / 5 / c.lado) * S * 0.9);
     g.fillRect(x - s / 2, y - s / 2, s, s);
   }
-  g.fillStyle = "rgba(248,250,252,.8)"; g.font = "600 22px Segoe UI, sans-serif";
+  g.fillStyle = "rgba(248,250,252,.8)"; g.font = "600 22px Atyp Display, Segoe UI, sans-serif";
   g.fillText(`${(c.lado / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km × ${(c.lado / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`, 18, S - 20);
 };
 function desenharMapa() { const s = document.createElement("script"); s.src = `cidades/${cod}.js`; document.body.appendChild(s); }

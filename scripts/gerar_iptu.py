@@ -8,8 +8,10 @@ Entradas (em PASTA_REPO/dados):
   municipios.js                scripts/gerar_cidades.py (população e edificações)
   casos_recadastramento.json   pesquisa de casos com fonte (opcional)
 
-Faixa de ganho: só casos de confiança alta que medem arrecadação ou valor lançado de IPTU e que não
-misturam aumento de alíquota. Mínimo e mediana desses casos (a mediana, e não o máximo, para não prometer demais).
+Faixa de ganho: só casos de confiança alta que medem arrecadação ou valor lançado de IPTU e que, pela fonte,
+não tiveram nova planta de valores nem mudança de alíquota (mistura_pgv_ou_aliquota = false). Com até 3 casos,
+a faixa vai do menor ao maior; com mais, do menor à mediana. Casos que medem o cadastro (área construída achada,
+imóveis corrigidos) entram à parte, como evidência de cadastro defasado.
 """
 import json, statistics, sys
 from pathlib import Path
@@ -43,18 +45,29 @@ for r in df.itertuples():
 
 casos = None
 arq = D / "casos_recadastramento.json"
+CAMPOS = ("municipio", "uf", "populacao_aprox", "ano", "o_que_mede", "antes", "depois", "aumento_pct", "como_fizeram", "fonte_titulo", "fonte_url", "fonte_tipo")
 if arq.exists():
     j = json.loads(arq.read_text(encoding="utf-8"))
-    validos = [c for c in j.get("casos", [])
-               if c.get("confianca") == "alta" and c.get("aumento_pct")
-               and any(k in (c.get("o_que_mede") or "") for k in ("arrecadação", "valor lançado"))
-               and "alíquota" not in (c.get("como_fizeram") or "").lower().replace("sem aumento de alíquota", "").replace("sem aumentar alíquota", "").replace("sem alterar alíquota", "")]
-    if validos:
-        pcts = sorted(float(c["aumento_pct"]) for c in validos)
+    receita = lambda c: any(k in (c.get("o_que_mede") or "") for k in ("arrecadação", "valor lançado"))
+    # "mais receita sem aumentar imposto": só casos que a fonte diz que não tiveram nova planta de valores nem alíquota
+    limpos = [c for c in j.get("casos", []) if c.get("confianca") == "alta" and c.get("aumento_pct") and receita(c) and c.get("mistura_pgv_ou_aliquota") is False]
+    cadastro = [c for c in j.get("casos", []) if c.get("confianca") == "alta" and not receita(c) and c.get("mistura_pgv_ou_aliquota") is not True]
+    cadastro.sort(key=lambda c: (c.get("uf") != "SC", c.get("uf") not in ("PR", "RS")))
+    # frase curta para a tela do jogo (mesmos números da fonte)
+    FRASES = {"Chapecó": "corrigiu a área construída de 28 mil dos 142 mil imóveis — 1 em cada 5",
+              "Brusque": "atualizou o cadastro de cerca de 12 mil dos 100 mil imóveis"}
+    for c in cadastro:
+        c["frase"] = FRASES.get(c["municipio"])
+    if limpos:
+        pcts = sorted(float(c["aumento_pct"]) for c in limpos)
+        topo = pcts[-1] if len(pcts) <= 3 else statistics.median(pcts)   # com poucos casos, o maior; com muitos, a mediana
         casos = {
-            "min": round(pcts[0]), "max": round(statistics.median(pcts)), "n": len(pcts),
-            "fonteCurta": ", ".join(f"{c['municipio']}/{c['uf']}" for c in validos[:4]) + (" e outros" if len(validos) > 4 else ""),
-            "casos": [{k: c.get(k) for k in ("municipio", "uf", "ano", "o_que_mede", "antes", "depois", "aumento_pct", "como_fizeram", "fonte_titulo", "fonte_url")} for c in validos],
+            "min": round(pcts[0]), "max": round(topo), "n": len(pcts),
+            "fonteCurta": " e ".join(f"{c['municipio']}/{c['uf']} (+{round(c['aumento_pct'])}%)" for c in sorted(limpos, key=lambda c: c["aumento_pct"])),
+            "casos": [{k: c.get(k) for k in CAMPOS} for c in limpos],
+            "cadastro": [{k: c.get(k) for k in CAMPOS + ("frase",)} for c in cadastro],
+            "estudos": [{"trecho": e.get("trecho"), "fonte": f"{e.get('fonte')}, {e.get('ano')}", "titulo": e.get("titulo"), "fonte_url": e.get("fonte_url")}
+                        for e in j.get("estudos_agregados", []) if e.get("fonte_url") and e.get("confianca", "alta") == "alta"],
         }
 
 js = ("// Gerado por scripts/gerar_iptu.py. IPTU: Tesouro Nacional, Siconfi, DCA Anexo I-C (receita líquida da conta 1.1.1.2.50.0.0).\n"
