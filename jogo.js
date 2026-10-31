@@ -380,7 +380,9 @@ const BONUS_MARCO = 1, BONUS_BATERIA = 6, BONUS_MAX = 20, BATERIA_BAIXA = 20;
 const RETA_FINAL = 10, RETA_MULT = 2;
 // casas douradas valem o mesmo total em qualquer cidade; 98% da área já fecha o voo (ninguém caça as 4 últimas casas)
 const OURO_TOTAL = 40000, COMPLETA = 0.98;
-function tremer(px) { J.tremor = Math.max(J.tremor || 0, px); }
+// tremida suave: um balanço lento que some aos poucos, em vez de um chacoalhão aleatório a cada quadro
+function tremer(px) { if ((J.tremor || 0) < 0.5) J.tremorT = 0; J.tremor = Math.max(J.tremor || 0, px); }
+function amortecerTremor(dt) { J.tremor = J.tremor > 0.05 ? J.tremor * Math.exp(-dt * 7) : 0; J.tremorT = (J.tremorT || 0) + dt; }
 function ganharTempo(s) { const dado = Math.max(0, Math.min(s, BONUS_MAX - J.bonusTempo)); J.bonusTempo += dado; J.tempo += dado; return dado; }
 
 // escala da cidade: tudo é proporcional ao tamanho da área de voo, para cidade pequena e grande serem igualmente jogáveis
@@ -417,7 +419,7 @@ function prepararPartida(C, demo) {
     tempo: cfg.duracao, decorrido: 0, pontos: 0, cadastrados: 0, dourados: 0, combo: 1, comboT: 0, ultimoAchado: -9,
     marcos: [], fixAte: 0, poderes: [], urubus: [], part: [], textos: [], proximoPoder: 2.5, proximoUrubu: 12, msgAte: 0, alertaSeg: 99, bonusTempo: 0,
     baterias: 0, avisouBateria: false, primeiroItem: true, mexeu: false, esperaT: 0, ajuda: 1, reta: false,
-    guia: null, guiaT: 0, guiaA: 0, tremor: 0, turboK: 0, rivais: [],
+    guia: null, guiaT: 0, guiaA: 0, tremor: 0, tremorT: 0, turboK: 0, rivais: [],
   });
   document.body.classList.remove("reta-final");
   J.demoAlvo = { t: Math.random() * 100 };
@@ -480,7 +482,7 @@ function atualizarVoo(dt) {
   Som.motorVel(v / J.E.vel);
   J.decorrido += dt;
   J.tempo -= dt;
-  J.tremor = Math.max(0, J.tremor - dt * 30);
+  amortecerTremor(dt);
   // ajuda invisível: quem está abaixo da curva (meta de 50% no fim) ganha um laser até 35% mais largo; o piloto bom nunca recebe
   const par = 0.5 * Math.min(1, J.decorrido / cfg.duracao);
   const alvoAj = 1 + clamp(par - J.cadastrados / J.C.n, 0, 0.25) * 1.4;
@@ -584,7 +586,7 @@ function iniciarPouso(t1 = "Fim da bateria", t2 = `pousando… já vem o Raio-X 
 }
 function atualizarPouso(dt) {
   J.pousoT -= dt;
-  J.tremor = Math.max(0, (J.tremor || 0) - dt * 30);
+  amortecerTremor(dt);
   const d = J.drone;
   d.vx *= 0.9; d.vy *= 0.9; d.alt = clamp(J.pousoT / J.pousoMax, 0, 1);
   atualizarHUD();
@@ -636,7 +638,7 @@ function escanear(x1, y1, x2, y2, dt) {
   const novoCombo = J.comboT >= 7 ? 4 : J.comboT >= 4 ? 3 : J.comboT >= 2 ? 2 : 1;
   const d = J.drone, acima = J.E.vista * 0.07;
   if (novoCombo > J.combo) {
-    Som.poder(); tremer(4);
+    Som.poder(); tremer(1.5);
     flutuar(d.x, d.y - acima, `COMBO ×${novoCombo}!`, "#FBBF24", 1.1);
     const c = $("#hud-combo"); c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop");
   } else if (novoCombo < J.combo) {
@@ -653,7 +655,7 @@ function escanear(x1, y1, x2, y2, dt) {
     const bonus = ouro * E.ouroBase * J.combo;
     pontosAqui += bonus;
     J.dourados += ouro;
-    Som.dourado(); tremer(5);
+    Som.dourado(); tremer(1.5);
     flutuar(d.x, d.y - acima, `★ +${milhar(bonus * (J.reta ? RETA_MULT : 1))}`, "#FBBF24", 1.2);
     for (let k = 0; k < 20; k++) poeira(d.x, d.y, "ouro");
     const a = J.ouroAcum && performance.now() < J.ouroAcum.ate ? J.ouroAcum : { n: 0, pts: 0 };
@@ -807,8 +809,9 @@ function camera() {
 function desenhar(tempo) {
   const C = J.C, E = J.E, d = J.drone, cam = camera();
   const esc = Math.min(W, H) / cam.v;                    // pixels por metro
-  const tr = (J.tremor || 0) * DPR;
-  const ox = W / 2 - cam.x * esc + (Math.random() * 2 - 1) * tr, oy = H / 2 - cam.y * esc + (Math.random() * 2 - 1) * tr;
+  const tr = (J.tremor || 0) * DPR, tt = J.tremorT || 0;
+  const ox = W / 2 - cam.x * esc + (Math.sin(tt * 44) * 0.65 + Math.sin(tt * 27) * 0.35) * tr,
+    oy = H / 2 - cam.y * esc + (Math.sin(tt * 38) * 0.6 + Math.sin(tt * 23) * 0.4) * tr;
   const sx = (x) => ox + x * esc, sy = (y) => oy + y * esc;
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
