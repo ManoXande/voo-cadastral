@@ -396,6 +396,8 @@ function ritmo(t = cfg.tempoMedio || TEMPO_BASE) {
 }
 // casas douradas valem o mesmo total em qualquer cidade; 98% da área já fecha o voo (ninguém caça as 4 últimas casas)
 const OURO_TOTAL = 40000, COMPLETA = 0.98;
+// % da área de voo em número inteiro, para baixo (74,6% é 74%): o mesmo no HUD, no resultado e nas estrelas
+const pctVoo = (p) => Math.floor(p * 100 + 1e-6);
 // tremida suave: um balanço lento que some aos poucos, em vez de um chacoalhão aleatório a cada quadro
 function tremer(px) { if ((J.tremor || 0) < 0.5) J.tremorT = 0; J.tremor = Math.max(J.tremor || 0, px); }
 function amortecerTremor(dt) { J.tremor = J.tremor > 0.05 ? J.tremor * Math.exp(-dt * 7) : 0; J.tremorT = (J.tremorT || 0) + dt; }
@@ -1142,7 +1144,7 @@ function atualizarHUD() {
   setTxt("#hud-imoveis", milhar(J.cadastrados));
   setTxt("#hud-pontos", milhar(J.pontos));
   setTxt("#hud-tempo", Math.ceil(J.tempo));
-  setTxt("#hud-pct", `${Math.round(p * 100)}%`);
+  setTxt("#hud-pct", `${pctVoo(p)}%`);
   $("#hud-pct-barra").style.width = Math.min(100, p * 100) + "%";
   $("#hud-bateria-barra").style.width = clamp((J.tempo / J.bateria0) * 100, 0, 100) + "%";
   $("#hud-bateria").classList.toggle("baixa", J.tempo <= 10);
@@ -1348,10 +1350,10 @@ function mostrarFim() {
   const todas = partidas(); todas.push(res); gravar(CHAVE.partidas, todas);
   Web.enviar(res);
   J.resultado = res; J.partidaId = res.id; J.fimEm = performance.now();
-  const pos = posicaoHoje(res);
-  $("#fim-titulo").textContent = res.pct >= COMPLETA * 100 ? "Voo perfeito!" : res.pct >= 75 ? "Voo de excelência!" : res.pct >= 45 ? "Belo voo!" : `${C.nome} no mapa!`;
+  const pos = posicaoHoje(res), pv = pctVoo(p);
+  $("#fim-titulo").textContent = pv >= COMPLETA * 100 ? "Voo perfeito!" : pv >= 75 ? "Voo de excelência!" : pv >= 45 ? "Belo voo!" : `${C.nome} no mapa!`;
   // 1 a 3 estrelas pela área de voo, acendendo uma a uma
-  const nEstrelas = res.pct >= 75 ? 3 : res.pct >= 45 ? 2 : 1;
+  const nEstrelas = pv >= 75 ? 3 : pv >= 45 ? 2 : 1;
   $("#fim-estrelas").innerHTML = [0, 1, 2].map((i) => `<i class="${i < nEstrelas ? "on" : ""}" style="--i:${i}">★</i>`).join("");
   for (let i = 0; i < nEstrelas; i++) setTimeout(() => { if (J.estado === "fim") Som.estrela(i); }, 450 + i * 300);
   // o próximo do ranking de hoje: dá vontade de voar de novo
@@ -1363,14 +1365,27 @@ function mostrarFim() {
     [milhar(res.pontos), "pontos"],
     [pos ? `${pos}º` : "—", "lugar no ranking de hoje"],
   ].map(([b, s]) => `<div><b>${b}</b><span>${s}</span></div>`).join("")
-    + (res.pctMun == null ? "" : `<div class="mapeou"><span>Você mapeou</span><b>${res.pctMun.toLocaleString("pt-BR")}%</b>
-      <span>de ${esc(C.nome)} · ${milhar(J.cadastrados)} de ${milhar(m.edif)} edificações</span>
-      <div class="barra"><i style="width:${Math.min(100, res.pctMun)}%"></i></div></div>`)
+    + htmlMapeou(C, m, pv)
     + (acima ? `<div class="rival">Faltaram <b>${milhar(acima.pontos - res.pontos)} pontos</b> para passar ${esc(primeiroNome(acima.nome))}, de ${esc(acima.municipio)}.</div>`
       : outros ? `<div class="rival"><b>Melhor voo de hoje até agora!</b> Deixe o nome para ficar no topo do ranking.</div>` : "");
   $("#fim-iptu").innerHTML = htmlIptu(C.c, m);
   mostrarTela("tela-fim");
   atividade();
+}
+
+// "Você mapeou X% da área de voo": o mesmo número do HUD. O município inteiro entra só na linha de baixo, explicando
+// que a área de voo é o centro (em 4 cidades ela já tem quase todas as edificações do município)
+function htmlMapeou(C, m, pv) {
+  const cid = esc(C.nome), area = milhar(C.n), mun = m.edif ? milhar(m.edif) : "";
+  const quaseTudo = m.edif && C.n >= m.edif * 0.9, fechada = pv >= COMPLETA * 100;
+  const linha = !m.edif ? (fechada ? `Área de voo fechada: o centro de ${cid} está no mapa.` : `A área de voo é o centro de ${cid}: ${area} edificações.`)
+    : quaseTudo ? (fechada ? `Área de voo fechada: ${area} das ${mun} edificações de ${cid}, quase o município inteiro.`
+      : `A área de voo já é quase todo o município: ${area} das ${mun} edificações de ${cid}.`)
+    : (fechada ? `Área de voo fechada: o centro de ${cid} está no mapa.` : `A área de voo é o centro de ${cid}: ${area} edificações.`)
+      + ` A Autha-Geo mapeia o município inteiro: ${mun} edificações.`;
+  return `<div class="mapeou"><span>Você mapeou</span><b>${pv}%<small> da área de voo</small></b>
+    <div class="barra"><i style="width:${Math.min(100, pv)}%"></i></div>
+    <p class="mapeou-mun">${linha}</p></div>`;
 }
 
 function htmlIptu(cod, m) {
