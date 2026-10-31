@@ -218,12 +218,14 @@ body.toque .tecla, body.toque .dica-teclado { display: none; }   /* no celular n
 .placar > div { background: var(--painel); border: 1px solid var(--linha); border-radius: 14px; padding: calc(var(--u) * .9) var(--u); box-shadow: inset 2px 0 0 var(--verde); }
 .placar b { display: block; font-size: calc(var(--u) * 2.3); font-weight: 700; letter-spacing: -.03em; color: var(--verde); font-variant-numeric: tabular-nums; line-height: 1.1; }
 .placar span { color: var(--cinza); font-size: max(11px, calc(var(--u) * .85)); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
-/* "Você mapeou X% do município": o número que conversa com o Raio-X do IPTU ao lado */
+/* "Você mapeou X% da área do voo": o mesmo número do HUD; o município inteiro vai na linha de baixo */
 .placar .mapeou { grid-column: 1 / -1; border-color: var(--linha-verde); box-shadow: inset 2px 0 0 var(--verde), 0 0 50px -24px rgba(74,222,128,.6); }
 .placar .mapeou b { font-size: calc(var(--u) * 3.2); margin: .05em 0; }
 .placar .mapeou span { text-transform: none; letter-spacing: 0; font-size: calc(var(--u) * 1.05); color: #cbd5e1; }
 .placar .mapeou span:first-child { text-transform: uppercase; letter-spacing: .1em; font-size: max(11px, calc(var(--u) * .85)); color: var(--cinza); }
+.placar .mapeou b small { font-size: .38em; font-weight: 600; letter-spacing: 0; color: #cbd5e1; }
 .placar .mapeou .barra { margin-top: .6em; }
+.placar .mapeou .mapeou-mun { margin: .7em 0 0; font-size: calc(var(--u) * .98); line-height: 1.45; color: #cbd5e1; }
 .placar .rival { grid-column: 1 / -1; box-shadow: inset 2px 0 0 var(--ouro); font-size: calc(var(--u) * 1.02); color: #cbd5e1; line-height: 1.4; }
 .placar .rival b { display: inline; font-size: 1em; color: var(--ouro); letter-spacing: 0; }
 /* estrelas do resultado: acendem uma a uma */
