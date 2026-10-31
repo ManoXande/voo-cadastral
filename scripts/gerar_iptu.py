@@ -83,10 +83,16 @@ if arq.exists():
                         for e in j.get("estudos_agregados", []) if e.get("fonte_url") and e.get("confianca", "alta") == "alta"],
         }
 
+# ganho médio estimado de IPTU (%) por perfil de cadastro do município
+GANHO = {"recente": 15, "semDigital": 40}
+
 js = ("// Gerado por scripts/gerar_iptu.py. IPTU: Tesouro Nacional, Siconfi, DCA Anexo I-C (receita líquida da conta 1.1.1.2.50.0.0).\n"
       "// v = IPTU líquido do ano a; pc/pcMed = por habitante (município / mediana do porte em SC); pe/peMed = por edificação urbana.\n"
       "window.IPTU = " + json.dumps(saida, ensure_ascii=False, separators=(",", ":")) + ";\n"
-      "window.CASOS_RECADASTRO = " + json.dumps(casos, ensure_ascii=False, separators=(",", ":")) + ";\n")
+      "window.CASOS_RECADASTRO = " + json.dumps(casos, ensure_ascii=False, separators=(",", ":")) + ";\n"
+      "// Cenários da tela de resultado e do relatório (médias de referência da Autha, definidas pelo dono em 31/10/2026;\n"
+      "// coerentes com os casos acima: recadastramento +12,6% a +16%, cadastro muito defasado +39%).\n"
+      "window.GANHO_IPTU = " + json.dumps(GANHO, ensure_ascii=False, separators=(",", ":")) + ";\n")
 (D / "iptu.js").write_text(js, encoding="utf-8")
 print(len(saida), "municípios com IPTU;", "ganho:", casos and (casos["pct"], casos["fonteCurta"], casos["defasado"] and (casos["defasado"]["pct"], casos["defasado"]["rot"])), "comparativo:", casos and len(casos["comparativo"]))
 print(grupo.round(2).to_string())
