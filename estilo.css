@@ -308,7 +308,7 @@ body.em-voo #btn-equipe { display: none; }
 .equipe-caixa .linha { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .equipe-caixa .btn { font-size: 15px; padding: 8px 16px; }
 .equipe-caixa .btn.marcado { border-color: var(--verde); background: rgba(74,222,128,.16); }
-.equipe-caixa input[type=text] { font-size: 16px; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: var(--fundo); color: var(--branco); width: 100%; }
+.equipe-caixa input[type=text], .equipe-caixa input[type=password] { font-size: 16px; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: var(--fundo); color: var(--branco); width: 100%; }
 .numeros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .numeros div { background: var(--painel2); border-radius: 12px; padding: 10px; box-shadow: inset 2px 0 0 var(--verde); }
 .numeros b { display: block; font-family: var(--display); font-size: 26px; color: var(--verde); }
@@ -403,3 +403,7 @@ body.em-voo #btn-equipe { display: none; }
   .fim > .botoes, .ficha .botoes { position: sticky; bottom: calc(var(--u) * -1.2); margin: 0 calc(var(--u) * -1.8) calc(var(--u) * -1.2);
     padding: calc(var(--u) * .8) calc(var(--u) * 1.8) var(--u); background: linear-gradient(0deg, rgba(3,7,18,.98) 70%, rgba(3,7,18,0)); z-index: 2; }
 }
+
+.erro-txt { color: var(--erro); }
+#eq-senha { max-width: 14em; }
+.nota-eq { margin: .5em 0 0; font-size: 14px; color: var(--cinza); line-height: 1.45; }

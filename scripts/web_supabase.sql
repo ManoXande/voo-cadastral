@@ -79,7 +79,7 @@ end $$;
 create or replace function public.voo_ranking(p_dia date) returns table (id text, quando timestamptz, dia date, municipio_cod text, municipio text, pontos integer, nome text, cargo text)
 language sql stable security definer set search_path = public as $$
   select id, quando, dia, municipio_cod, municipio, pontos, nome, cargo from voo_partidas
-  where dia = p_dia and not oculto order by pontos desc limit 300
+  where dia = p_dia and not oculto order by pontos desc limit 1000
 $$;
 
 create or replace function public.voo_equipe_ok(p_pin text) returns boolean

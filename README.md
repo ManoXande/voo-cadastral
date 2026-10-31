@@ -18,7 +18,7 @@ Jogo de estande para a COMAC-SC 2026: o prefeito pilota um drone sobre a **próp
 As fichas e o ranking ficam no navegador do notebook (localStorage). **Baixe a planilha no fim de cada dia.**
 
 ## Regras do jogo
-- Bateria de 60 s. O relógio só começa quando o piloto mexe o controle (ou depois de 4 s). O primeiro item é sempre uma bateria logo à frente.
+- Tempo médio do voo escolhido na área da equipe: 45 s, 1 min, 1 min 20 s (padrão) ou 2 min. Bateria inicial, baterias extras, aviso de bateria baixa e reta final escalam juntos (no padrão: bateria de 60 s, baterias de +6 s até +20 s, reta final de 10 s). Os pontos são multiplicados por √(80 s ÷ tempo médio): no playtest, o jogador leigo fez 280 mil, 295 mil e 299 mil pontos em 45 s, 80 s e 2 min. O relógio só começa quando o piloto mexe o controle (ou depois de 4 s). O primeiro item é sempre uma bateria logo à frente.
 - O tempo extra vem das baterias achadas no mapa (+6 s cada); cada marco de área cadastrada (4% a 90%) dá só +1 s. Teto de +20 s (a fila anda). Entre 20 s e 10 s, aparece o aviso e uma bateria perto do drone.
 - Reta final: nos últimos 10 s os pontos dobram, a borda da tela pulsa, a contagem 5-4-3-2-1 aparece grande e só caem itens de GPS.
 - 98% da área de voo encerra o voo na hora, com bônus pelo tempo que sobrou. 15 s sem comando encerram o voo.
@@ -62,3 +62,13 @@ python scripts/testar_jogo.py . teste Chapec                 # teste no navegado
 ```
 
 Fontes: Overture Maps Foundation (edificações, inclui Google Open Buildings, Microsoft e OpenStreetMap; ruas, água, bairros e lugares); OpenStreetMap via Nominatim (prefeituras e igrejas matriz); IBGE, Censo 2022 e setores censitários; Tesouro Nacional, Siconfi (DCA). O potencial de IPTU é estimativa para conversa, não é lançamento de imposto.
+
+## Ranking e fichas online
+
+Cada aparelho guarda tudo no navegador e funciona sem internet. Os voos sobem por uma fila para o Supabase (projeto `autha-task`, tabelas `voo_partidas` e `voo_fichas`, esquema em `scripts/web_supabase.sql`), e o ranking do dia junta a TV do estande com os celulares que jogam pelo link. As tabelas ficam fechadas: o jogo só grava e lê o ranking por funções (nome, cargo, município e pontos). WhatsApp e contatos só voltam para a equipe, com a senha da equipe.
+
+Na área da equipe (segure ⚙ por 1 s):
+- **Zerar o ranking** tira todos do ranking; as fichas continuam na planilha. Com a senha salva, vale também nos celulares.
+- **Apagar voos e fichas deste aparelho** limpa o navegador (baixe a planilha antes); o que já subiu continua no banco.
+- **Senha da equipe**: com ela, a planilha traz as fichas feitas pelo link. Para trocar: `update voo_equipe set pin_hash = extensions.crypt('<nova>', extensions.gen_salt('bf'));`
+

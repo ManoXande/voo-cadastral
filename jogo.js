@@ -5,8 +5,9 @@
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const CHAVE = { partidas: "voo-cadastral:partidas-v3", config: "voo-cadastral:config", ultima: "voo-cadastral:ultima-cidade" };
-const CFG_PADRAO = { duracao: 60, som: true, premio: "", voltarInicio: 60 };
+const CHAVE = { partidas: "voo-cadastral:partidas-v3", config: "voo-cadastral:config", ultima: "voo-cadastral:ultima-cidade", fila: "voo-cadastral:fila-web-v3" };
+// tempoMedio = duração média de um voo, em segundos (bateria inicial + baterias e marcos que o piloto pega no caminho)
+const CFG_PADRAO = { tempoMedio: 80, som: true, premio: "", voltarInicio: 60, senha: "", rankingZeradoEm: "" };
 const ler = (k, padrao) => { try { return JSON.parse(localStorage.getItem(k)) ?? padrao; } catch { return padrao; } };
 function gravar(k, v) {
   try { localStorage.setItem(k, JSON.stringify(v)); return true; }
@@ -18,6 +19,9 @@ function gravar(k, v) {
   }
 }
 let cfg = { ...CFG_PADRAO, ...ler(CHAVE.config, {}) };
+// configuração antiga guardava a bateria inicial (30/45/60/90 s); o voo real durava ~20 s a mais
+if (cfg.duracao && !ler(CHAVE.config, {}).tempoMedio) cfg.tempoMedio = { 30: 45, 45: 60, 60: 80, 90: 120 }[cfg.duracao] || 80;
+delete cfg.duracao;
 
 const MUN = window.MUNICIPIOS || [];
 const MUN_POR_COD = Object.fromEntries(MUN.map((m) => [m.c, m]));
@@ -375,9 +379,20 @@ const MARCOS = [
   { p: 0.90, t: "Quase lá!", s: "falta pouco para fechar a área de voo" },
 ];
 // o tempo extra vem das baterias achadas no mapa; os marcos dão só um pouco. O voo nunca passa de duração + 20 s (a fila do estande anda)
-const BONUS_MARCO = 1, BONUS_BATERIA = 6, BONUS_MAX = 20, BATERIA_BAIXA = 20;
+// tempo médio do voo: bateria inicial, baterias extras, aviso de bateria baixa e reta final escalam juntos.
+// Base medida no playtest: bateria de 60 s + ~20 s de baterias e marcos = voo de ~80 s.
+const TEMPO_BASE = 80, TEMPOS = [[45, "45 s"], [60, "1 min"], [80, "1 min 20 s"], [120, "2 min"]];
+const BONUS_MARCO = 1;
+let BONUS_BATERIA = 6, BONUS_MAX = 20, BATERIA_BAIXA = 20;
 // reta final: nos últimos 10 s os pontos dobram e só caem itens de GPS (o clímax que a plateia vê)
-const RETA_FINAL = 10, RETA_MULT = 2;
+let RETA_FINAL = 10;
+const RETA_MULT = 2;
+function ritmo(t = cfg.tempoMedio || TEMPO_BASE) {
+  const k = t / TEMPO_BASE, reta = clamp(Math.round(10 * k), 6, 15);
+  // pontos equilibrados pelo tempo: voo de 2 min não ganha do de 45 s só por durar mais. Raiz quadrada, e não 1/k, porque
+  // os primeiros segundos rendem mais (centro denso): no playtest, o voo de 45 s fazia ~80% dos pontos do de 80 s, não 56%
+  return { bateria0: Math.round(60 * k), bonusMax: Math.round(20 * k), bonusBateria: Math.max(3, Math.round(6 * k)), reta, baixa: Math.max(reta + 5, Math.round(20 * k)), kPts: Math.sqrt(1 / k) };
+}
 // casas douradas valem o mesmo total em qualquer cidade; 98% da área já fecha o voo (ninguém caça as 4 últimas casas)
 const OURO_TOTAL = 40000, COMPLETA = 0.98;
 // tremida suave: um balanço lento que some aos poucos, em vez de um chacoalhão aleatório a cada quadro
@@ -415,8 +430,11 @@ function prepararPartida(C, demo) {
   // decola da prefeitura (ou do pico urbano, o centro da área de voo, se a prefeitura não estiver no mapa)
   Object.assign(J.drone, { x: C.inicio.x, y: C.inicio.y, vx: 0, vy: 0, ang: -Math.PI / 2, alt: demo ? 1 : 0, tonto: 0 });
   J.cam.x = J.drone.x; J.cam.y = J.drone.y;
+  const R = ritmo();
+  ({ bonusMax: BONUS_MAX, bonusBateria: BONUS_BATERIA, reta: RETA_FINAL, baixa: BATERIA_BAIXA } = R);
   Object.assign(J, {
-    tempo: cfg.duracao, decorrido: 0, pontos: 0, cadastrados: 0, dourados: 0, combo: 1, comboT: 0, ultimoAchado: -9,
+    bateria0: R.bateria0, kPts: R.kPts,
+    tempo: R.bateria0, decorrido: 0, pontos: 0, cadastrados: 0, dourados: 0, combo: 1, comboT: 0, ultimoAchado: -9,
     marcos: [], fixAte: 0, poderes: [], urubus: [], part: [], textos: [], proximoPoder: 2.5, proximoUrubu: 12, msgAte: 0, alertaSeg: 99, bonusTempo: 0,
     baterias: 0, avisouBateria: false, primeiroItem: true, mexeu: false, esperaT: 0, ajuda: 1, reta: false,
     guia: null, guiaT: 0, guiaA: 0, tremor: 0, tremorT: 0, turboK: 0, rivais: [],
@@ -484,7 +502,7 @@ function atualizarVoo(dt) {
   J.tempo -= dt;
   amortecerTremor(dt);
   // ajuda invisível: quem está abaixo da curva (meta de 50% no fim) ganha um laser até 35% mais largo; o piloto bom nunca recebe
-  const par = 0.5 * Math.min(1, J.decorrido / cfg.duracao);
+  const par = 0.5 * Math.min(1, J.decorrido / J.bateria0);
   const alvoAj = 1 + clamp(par - J.cadastrados / J.C.n, 0, 0.25) * 1.4;
   J.ajuda += (alvoAj - J.ajuda) * Math.min(1, dt * 0.6);
   escanear(px, py, J.drone.x, J.drone.y, dt);
@@ -656,21 +674,21 @@ function escanear(x1, y1, x2, y2, dt) {
     pontosAqui += bonus;
     J.dourados += ouro;
     Som.dourado(); tremer(1.5);
-    flutuar(d.x, d.y - acima, `★ +${milhar(bonus * (J.reta ? RETA_MULT : 1))}`, "#FBBF24", 1.2);
+    flutuar(d.x, d.y - acima, `★ +${milhar(bonus * (J.reta ? RETA_MULT : 1) * J.kPts)}`, "#FBBF24", 1.2);
     for (let k = 0; k < 20; k++) poeira(d.x, d.y, "ouro");
     const a = J.ouroAcum && performance.now() < J.ouroAcum.ate ? J.ouroAcum : { n: 0, pts: 0 };
-    a.n += ouro; a.pts += bonus; a.ate = performance.now() + 1800;
+    a.n += ouro; a.pts += bonus * (J.reta ? RETA_MULT : 1) * J.kPts; a.ate = performance.now() + 1800;
     J.ouroAcum = a;
     const el = $("#hud-bonus");
     el.textContent = `${a.n > 1 ? a.n + " casas douradas" : "Casa dourada"} · +${milhar(a.pts)}`;
     el.classList.add("on");
   }
   if (J.reta) pontosAqui *= RETA_MULT;
-  J.pontos += pontosAqui;
+  J.pontos += pontosAqui * J.kPts;
   passarRivais();
   verificarMarcos();
   if (J.cadastrados >= Math.ceil(J.C.n * COMPLETA) && J.estado === "voo") {
-    const bonus = Math.round(J.tempo * 2000);
+    const bonus = Math.round(J.tempo * 2000 * J.kPts);
     J.pontos += bonus;
     Som.marco();
     J.tempo = 0;
@@ -1125,7 +1143,7 @@ function atualizarHUD() {
   setTxt("#hud-tempo", Math.ceil(J.tempo));
   setTxt("#hud-pct", `${Math.round(p * 100)}%`);
   $("#hud-pct-barra").style.width = Math.min(100, p * 100) + "%";
-  $("#hud-bateria-barra").style.width = clamp((J.tempo / cfg.duracao) * 100, 0, 100) + "%";
+  $("#hud-bateria-barra").style.width = clamp((J.tempo / J.bateria0) * 100, 0, 100) + "%";
   $("#hud-bateria").classList.toggle("baixa", J.tempo <= 10);
   const combo = $("#hud-combo");
   combo.classList.toggle("on", J.combo > 1);
@@ -1197,6 +1215,11 @@ function clicarFoco() {
   if (b) b.click();
 }
 
+function pintarRankingInicio() {
+  const cids = [...new Set(partidasDoDia().sort((a, b) => (a.quando < b.quando ? 1 : -1)).map((p) => p.municipio))].slice(0, 3);
+  const lista = cids.length > 1 ? cids.slice(0, -1).join(", ") + " e " + cids[cids.length - 1] : cids[0];
+  $("#ranking-inicio").innerHTML = htmlRanking(null, 6) + (cids.length ? `<p class="ja-voaram">Hoje já voaram sobre <b>${esc(lista)}</b>. Falta a sua cidade.</p>` : "");
+}
 async function irInicio() {
   escolhaSeq++;
   $("#carregando").classList.remove("ativo");
@@ -1206,9 +1229,8 @@ async function irInicio() {
   mostrarTela("tela-inicio");
   $("#premio-inicio").textContent = cfg.premio || "";
   // quem passa vê que as cidades vizinhas já voaram hoje
-  const cids = [...new Set(partidas().filter((p) => p.dia === hoje()).reverse().map((p) => p.municipio))].slice(0, 3);
-  const lista = cids.length > 1 ? cids.slice(0, -1).join(", ") + " e " + cids[cids.length - 1] : cids[0];
-  $("#ranking-inicio").innerHTML = htmlRanking(null, 6) + (cids.length ? `<p class="ja-voaram">Hoje já voaram sobre <b>${esc(lista)}</b>. Falta a sua cidade.</p>` : "");
+  pintarRankingInicio();
+  Web.lerRanking();
   atualizarCTA(); atualizarAvisoSom();
   // voo de demonstração ao fundo
   const cod = ler(CHAVE.ultima, null) || "4204202";
@@ -1277,7 +1299,7 @@ async function escolherCidade(m) {
 function comecarVoo(C) {
   $("#busca").blur();
   prepararPartida(C, false);
-  const dia = partidas().filter((p) => p.dia === hoje() && p.nome).sort((a, b) => a.pontos - b.pontos);
+  const dia = partidasDoDia().filter((p) => p.nome).sort((a, b) => a.pontos - b.pontos);
   J.rivais = dia.map((p, i) => ({ pts: p.pontos, nome: primeiroNome(p.nome), mun: p.municipio, lugar: dia.length - i }));
   J.estado = "contagem"; J.contagemT = 4.4;
   hudCache = {};
@@ -1304,6 +1326,15 @@ function moverFocoPausa() { $$("#pausa .btn").forEach((b, i) => b.classList.togg
 
 /* ---------- resultado ---------- */
 function partidas() { const v = ler(CHAVE.partidas, []); return Array.isArray(v) ? v.filter((p) => p && typeof p === "object" && p.id) : []; }
+// voos do dia neste aparelho + os dos outros aparelhos (online). Voo zerado aqui (arquivado) não volta pela internet;
+// voo daqui que já subiu e sumiu do ranking online foi zerado pela equipe em outro aparelho: sai daqui também.
+function partidasDoDia(dia = hoje()) {
+  const todas = partidas(), ids = new Set(todas.map((p) => p.id)), web = Web.ranking(dia), noWeb = new Set(web.map((p) => p.id)), listaEm = Web.listaEm();
+  const zerado = cfg.rankingZeradoEm ? new Date(cfg.rankingZeradoEm).getTime() : 0;
+  return todas.filter((p) => p.dia === dia && !(p.syncEm && listaEm > p.syncEm && !noWeb.has(p.id)))
+    .concat(web.filter((p) => !ids.has(p.id) && new Date(p.quando).getTime() > zerado));
+}
+const origemVoo = () => (location.protocol === "file:" ? "estande" : matchMedia("(pointer: coarse)").matches ? "celular" : "computador");
 function mostrarFim() {
   const C = J.C, p = J.cadastrados / C.n, m = MUN_POR_COD[C.c] || { n: C.nome, edif: C.edifMun };
   J.estado = "fim";
@@ -1311,9 +1342,10 @@ function mostrarFim() {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), quando: new Date().toISOString(), dia: hoje(),
     municipioCod: C.c, municipio: C.nome, pontos: Math.round(J.pontos), imoveis: J.cadastrados, pct: Math.round(p * 1000) / 10,
     pctMun: m.edif ? Math.round((J.cadastrados / m.edif) * 1000) / 10 : null,   // % de todas as edificações do município
-    dourados: J.dourados, duracao: cfg.duracao,
+    dourados: J.dourados, duracao: Math.round(J.decorrido), origem: origemVoo(),
   };
   const todas = partidas(); todas.push(res); gravar(CHAVE.partidas, todas);
+  Web.enviar(res);
   J.resultado = res; J.partidaId = res.id; J.fimEm = performance.now();
   const pos = posicaoHoje(res);
   $("#fim-titulo").textContent = res.pct >= COMPLETA * 100 ? "Voo perfeito!" : res.pct >= 75 ? "Voo de excelência!" : res.pct >= 45 ? "Belo voo!" : `${C.nome} no mapa!`;
@@ -1322,8 +1354,8 @@ function mostrarFim() {
   $("#fim-estrelas").innerHTML = [0, 1, 2].map((i) => `<i class="${i < nEstrelas ? "on" : ""}" style="--i:${i}">★</i>`).join("");
   for (let i = 0; i < nEstrelas; i++) setTimeout(() => { if (J.estado === "fim") Som.estrela(i); }, 450 + i * 300);
   // o próximo do ranking de hoje: dá vontade de voar de novo
-  const acima = partidas().filter((p) => p.dia === res.dia && p.nome && p.pontos > res.pontos).sort((a, b) => a.pontos - b.pontos)[0];
-  const outros = partidas().filter((p) => p.dia === res.dia && p.nome).length;
+  const acima = partidasDoDia(res.dia).filter((p) => p.nome && p.pontos > res.pontos).sort((a, b) => a.pontos - b.pontos)[0];
+  const outros = partidasDoDia(res.dia).filter((p) => p.nome).length;
   $("#fim-resumo").innerHTML = `Você cadastrou <b class="verde">${milhar(J.cadastrados)} imóveis</b> de <b>${esc(C.nome)}</b> em ${Math.round(J.decorrido)} ${Math.round(J.decorrido) === 1 ? "segundo" : "segundos"} de voo.`;
   $("#fim-piada").textContent = (pos === 1 ? "Por enquanto, o melhor voo do dia. " : "") + "Na vida real, a Autha-Geo faz este mapa com drone e laser, imóvel por imóvel, pronto para o CIB.";
   $("#fim-placar").innerHTML = [
@@ -1380,7 +1412,7 @@ function prazoCib() {
 }
 
 function posicaoHoje(res) {
-  const lista = partidas().filter((p) => p.dia === res.dia && (p.nome || p.id === res.id)).sort((a, b) => b.pontos - a.pontos);
+  const lista = partidasDoDia(res.dia).filter((p) => p.nome || p.id === res.id).sort((a, b) => b.pontos - a.pontos);
   return lista.findIndex((p) => p.id === res.id) + 1;
 }
 
@@ -1440,6 +1472,7 @@ function salvarFicha() {
     interesse: ($("#f-interesse button.marcado") || {}).textContent || "",
   });
   gravar(CHAVE.partidas, todas);
+  Web.enviar(r);
   J.resultado = r;
   irRankingFinal(r);
 }
@@ -1465,7 +1498,7 @@ function primeiroNome(nome) {
 }
 
 function htmlRanking(destaque, n) {
-  const lista = partidas().filter((p) => p.dia === hoje() && p.nome).sort((a, b) => b.pontos - a.pontos);
+  const lista = partidasDoDia().filter((p) => p.nome).sort((a, b) => b.pontos - a.pontos);
   let top = lista.slice(0, n);
   const eu = destaque && lista.findIndex((p) => p.id === destaque);
   const linha = (p, i) => `<li class="${p.id === destaque ? "eu" : ""}"><span class="pos">${i + 1}º</span><span class="quem"><b>${esc(p.nome)}</b><small>${esc(p.municipio)}${p.cargo ? " · " + esc(p.cargo) : ""}</small></span><span class="pts">${milhar(p.pontos)}</span></li>`;
@@ -1546,11 +1579,15 @@ function abrirEquipe() {
   const pr = $("#eq-premio");   // 11. o prêmio digitado não se perde quando o painel é redesenhado
   if (pr && $("#equipe").classList.contains("ativo")) { cfg.premio = pr.value.trim(); gravar(CHAVE.config, cfg); }
   if (J.estado === "voo") pausar(true);
-  const todas = partidas(), deHoje = todas.filter((p) => p.dia === hoje()), fichas = todas.filter((p) => p.nome);
+  const todas = partidas(), deHoje = partidasDoDia(), fichas = todas.filter((p) => p.nome);   // hoje: todos os aparelhos
   const conta = (l, f) => l.filter(f).length;
-  const dur = [30, 45, 60, 90].map((s) => `<button class="btn ${cfg.duracao === s ? "marcado" : ""}" data-dur="${s}">${s} s</button>`).join("");
+  const dur = TEMPOS.map(([s, rot]) => `<button class="btn ${cfg.tempoMedio === s ? "marcado" : ""}" data-tempo="${s}">${rot}${s === TEMPO_BASE ? " (padrão)" : ""}</button>`).join("");
+  const r = ritmo(), fila = ler(CHAVE.fila, []).length;
+  const online = Web.estado() === true ? `<span class="verde">● Online:</span> a TV e os celulares mostram o mesmo ranking${fila ? ` · ${fila} voo(s) subindo` : ""}.`
+    : Web.estado() === false ? `<span class="erro-txt">● Sem internet:</span> os voos ficam guardados neste aparelho${fila ? ` (${fila} na fila)` : ""} e sobem quando a conexão voltar.`
+    : "Conectando…";
   const ult = fichas.slice(-40).reverse();
-  const semFicha = deHoje.filter((p) => !p.nome).slice(-6).reverse();
+  const semFicha = deHoje.filter((p) => !p.nome && !p.web).slice(-6).reverse();
   $("#equipe-caixa").innerHTML = `
     <h2>Área da equipe</h2>
     <div class="numeros">
@@ -1559,15 +1596,26 @@ function abrirEquipe() {
       <div><b>${conta(deHoje, (p) => p.cargo === "Prefeito(a)")}</b><span>prefeitos hoje</span></div>
       <div><b>${fichas.length}</b><span>fichas no total</span></div>
     </div>
-    <h3>Duração do voo</h3><div class="linha">${dur}</div>
+    <h3>Tempo médio de cada voo</h3><div class="linha">${dur}</div>
+    <p class="nota-eq">Bateria inicial de ${r.bateria0} s, baterias de +${r.bonusBateria} s (até +${r.bonusMax} s) e reta final de ${r.reta} s. Vale a partir do próximo voo. Os pontos são equilibrados pelo tempo, mas o ideal é escolher no começo do dia.</p>
+    <h3>Ranking</h3>
+    <div class="linha">
+      <button class="btn" data-eq="zerar">Zerar o ranking…</button>
+      <button class="btn" data-eq="apagar-tudo">Apagar voos e fichas deste aparelho…</button>
+    </div>
+    <p class="nota-eq">Zerar tira todos do ranking da TV e dos celulares; as fichas continuam na planilha.</p>
+    <h3>Online</h3>
+    <p class="nota-eq">${online}</p>
+    <div class="linha"><input type="password" inputmode="numeric" id="eq-senha" value="${esc(cfg.senha)}" placeholder="Senha da equipe" autocomplete="off">
+      <button class="btn" data-eq="senha">${cfg.senha ? "Trocar a senha" : "Salvar a senha"}</button></div>
+    <p class="nota-eq">Com a senha, “Zerar” vale também nos celulares e a planilha traz as fichas feitas pelo link.</p>
     <h3>Prêmio do dia (aparece na tela inicial e no ranking)</h3>
     <div class="linha"><input type="text" id="eq-premio" value="${esc(cfg.premio)}" placeholder="Ex.: voo de drone com Raio-X de até 30 ha"></div>
     <h3>Som</h3><div class="linha"><button class="btn ${cfg.som ? "marcado" : ""}" data-som="1">Ligado</button><button class="btn ${!cfg.som ? "marcado" : ""}" data-som="0">Desligado</button></div>
     <h3>Planilha e relatórios</h3>
     <div class="linha">
-      <button class="btn btn-pri" data-eq="csv">Baixar planilha (todas as fichas e voos)</button>
+      <button class="btn btn-pri" data-eq="csv">Baixar planilha (todas as fichas e voos${cfg.senha ? ", inclusive dos celulares" : ""})</button>
       <button class="btn" data-eq="tela-cheia">Tela cheia</button>
-      <button class="btn" data-eq="limpar">Apagar o ranking de hoje…</button>
       <button class="btn" data-eq="fechar">Fechar (Esc)</button>
     </div>
     <p class="dica-equipe">Antes de salvar a ficha, peça também o contato do setor de tributos e do engenheiro da prefeitura.</p>
@@ -1591,30 +1639,127 @@ $("#equipe").addEventListener("click", (e) => {
     if (r) { $("#equipe").classList.remove("ativo"); J.resultado = r; J.partidaId = r.id; J.fichaDoPainel = true; irFicha(); }
     return;
   }
-  if (b.dataset.dur) { cfg.duracao = +b.dataset.dur; gravar(CHAVE.config, cfg); abrirEquipe(); }
+  if (b.dataset.tempo) { cfg.tempoMedio = +b.dataset.tempo; gravar(CHAVE.config, cfg); abrirEquipe(); }
   else if (b.dataset.som) { cfg.som = b.dataset.som === "1"; gravar(CHAVE.config, cfg); Som.garantir(); abrirEquipe(); atualizarAvisoSom(); }
   else if (b.dataset.eq === "csv") baixarCSV();
   else if (b.dataset.eq === "tela-cheia") { document.documentElement.requestFullscreen?.(); }
-  else if (b.dataset.eq === "limpar") {
-    if (confirm("Apagar o ranking de HOJE? As fichas continuam na planilha; só saem do ranking da TV.")) {
-      gravar(CHAVE.partidas, partidas().map((p) => (p.dia === hoje() ? { ...p, dia: p.dia + "-arquivado" } : p)));
-      abrirEquipe();
-    }
-  }
+  else if (b.dataset.eq === "zerar") zerarRanking();
+  else if (b.dataset.eq === "apagar-tudo") apagarAparelho();
+  else if (b.dataset.eq === "senha") salvarSenha();
   else if (b.dataset.eq === "fechar") fecharEquipe();
 });
 
-function baixarCSV() {
+// zerar: os voos saem do ranking (aqui e, com a senha, nos celulares); as fichas ficam na planilha
+async function zerarRanking() {
+  if (!confirm("Zerar o ranking? Todos saem do ranking da TV" + (cfg.senha ? " e dos celulares" : "") + ". As fichas continuam na planilha.")) return;
+  gravar(CHAVE.partidas, partidas().map((p) => (/^\d{4}-\d{2}-\d{2}$/.test(p.dia) ? { ...p, dia: p.dia + "-arquivado" } : p)));
+  cfg.rankingZeradoEm = new Date().toISOString(); gravar(CHAVE.config, cfg);
+  let msg = "Ranking zerado neste aparelho.";
+  if (cfg.senha) {
+    try { const n = await Web.zerar(cfg.senha); msg = n >= 0 ? "Ranking zerado na TV e nos celulares." : "Zerado neste aparelho. A senha da equipe não confere: os celulares ainda mostram o ranking antigo."; }
+    catch { msg = "Zerado neste aparelho. Sem internet agora: zere de novo quando a conexão voltar, para valer nos celulares."; }
+  } else msg += " Para valer também nos celulares, salve a senha da equipe e zere de novo.";
+  alert(msg); abrirEquipe();
+}
+// apagar tudo deste aparelho: só depois de baixar a planilha (o que já subiu para o banco online continua lá)
+function apagarAparelho() {
+  const fichas = partidas().filter((p) => p.nome).length;
+  if (!confirm(`Apagar TODOS os voos e as ${fichas} ficha(s) deste aparelho? Baixe a planilha antes: isto não tem volta.`)) return;
+  if (ler(CHAVE.fila, []).length && !confirm("Ainda há voos sem subir para o banco online. Apagar mesmo assim?")) return;
+  gravar(CHAVE.partidas, []); gravar(CHAVE.fila, []);
+  cfg.rankingZeradoEm = new Date().toISOString(); gravar(CHAVE.config, cfg);
+  abrirEquipe();
+}
+async function salvarSenha() {
+  const v = $("#eq-senha").value.trim();
+  if (!v) { cfg.senha = ""; gravar(CHAVE.config, cfg); abrirEquipe(); return; }
+  try {
+    if (await Web.senhaOk(v)) { cfg.senha = v; gravar(CHAVE.config, cfg); alert("Senha conferida."); abrirEquipe(); }
+    else alert("Senha errada (5 erros bloqueiam por 10 minutos).");
+  } catch { alert("Sem internet agora: não deu para conferir a senha."); }
+}
+
+async function baixarCSV() {
+  let lista = partidas();
+  if (cfg.senha) {   // fichas feitas pelo link, nos celulares
+    try { const ids = new Set(lista.map((p) => p.id)); lista = lista.concat((await Web.fichas(cfg.senha)).filter((p) => !ids.has(p.id))); }
+    catch { alert("Sem internet agora: a planilha sai só com as fichas deste aparelho."); }
+  }
   const cols = [["quando", "Data e hora"], ["municipio", "Município"], ["municipioCod", "Código IBGE"], ["nome", "Nome"], ["cargo", "Cargo"], ["whatsapp", "WhatsApp"],
     ["tributosNome", "Tributos - nome"], ["tributosWhats", "Tributos - WhatsApp"], ["engNome", "Engenheiro - nome"], ["engWhats", "Engenheiro - WhatsApp"],
-    ["pontos", "Pontos"], ["imoveis", "Imóveis cadastrados"], ["pct", "% da área de voo"], ["pctMun", "% do município mapeado"], ["dourados", "Casas douradas (bônus do jogo)"], ["interesse", "Quer conversar?"], ["duracao", "Duração (s)"], ["consentimento", "Autorizou contato"]];
+    ["pontos", "Pontos"], ["imoveis", "Imóveis cadastrados"], ["pct", "% da área de voo"], ["pctMun", "% do município mapeado"], ["dourados", "Casas douradas (bônus do jogo)"], ["interesse", "Quer conversar?"], ["duracao", "Duração do voo (s)"], ["origem", "Onde jogou"], ["consentimento", "Autorizou contato"]];
   const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const linhas = [cols.map((c) => q(c[1])).join(";")].concat(partidas().map((p) => cols.map(([k]) => q(k === "quando" ? new Date(p[k]).toLocaleString("pt-BR") : k === "consentimento" ? (p[k] ? "sim" : "") : typeof p[k] === "number" ? p[k].toLocaleString("pt-BR", { useGrouping: false }) : p[k])).join(";")));
+  const linhas = [cols.map((c) => q(c[1])).join(";")].concat(lista.map((p) => cols.map(([k]) => q(k === "quando" ? new Date(p[k]).toLocaleString("pt-BR") : k === "consentimento" ? (p[k] ? "sim" : "") : typeof p[k] === "number" ? p[k].toLocaleString("pt-BR", { useGrouping: false }) : p[k])).join(";")));
   const blob = new Blob(["﻿" + linhas.join("\r\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = `voo-cadastral_fichas_${hoje()}.csv`; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
+
+/* ============================== ranking e fichas online (Supabase, projeto autha-task) ============================== */
+// Cada aparelho continua guardando tudo (funciona sem internet). Os voos sobem por uma fila; o ranking do dia junta
+// os voos de todos os aparelhos. O banco só aceita gravar e devolve o ranking: WhatsApp e e-mail nunca voltam para o jogo
+// (só para a equipe, com a senha). Banco: scripts/web_supabase.sql.
+const Web = (() => {
+  const URL_RPC = "https://guwdqkrjjdeqlotdopbw.supabase.co/rest/v1/rpc/", CHAVE_PUB = "sb_publishable_ViOYUjCv15ajJSH8Az2HQg_8rm-6V-e";
+  let lista = [], diaLista = "", lidoEm = 0, listaEm = 0, ok = null, enviando = false;
+  async function rpc(nome, corpo) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
+    try {
+      const r = await fetch(URL_RPC + nome, { method: "POST", headers: { apikey: CHAVE_PUB, "Content-Type": "application/json" }, body: JSON.stringify(corpo), signal: ctl.signal });
+      ok = true;
+      if (!r.ok) { const e = new Error(nome + " " + r.status); e.http = r.status; throw e; }
+      return await r.json();
+    } catch (e) { if (!e.http) ok = false; throw e; } finally { clearTimeout(t); }
+  }
+  const CAMPOS = ["id", "quando", "municipioCod", "municipio", "pontos", "imoveis", "pct", "pctMun", "dourados", "duracao", "origem", "nome", "cargo",
+    "whatsapp", "tributosNome", "tributosWhats", "engNome", "engWhats", "interesse", "consentimento", "fichaEm"];
+  const paraWeb = (p) => ({ ...Object.fromEntries(CAMPOS.filter((k) => p[k] !== undefined && p[k] !== "").map((k) => [k, p[k]])), dia: String(p.dia).slice(0, 10) });
+  function enviar(p) {
+    const f = ler(CHAVE.fila, []).filter((x) => x.id !== p.id);
+    f.push({ ...paraWeb(p), _v: Date.now() });
+    gravar(CHAVE.fila, f.slice(-400));
+    descarregar();
+  }
+  async function descarregar() {
+    if (enviando || !navigator.onLine) return;
+    enviando = true;
+    try {
+      for (let f = ler(CHAVE.fila, []); f.length; f = ler(CHAVE.fila, [])) {
+        const p = f[0];
+        try { const { _v, ...corpo } = p; await rpc("voo_registrar", { p: corpo }); marcarSync(p.id); }
+        catch (e) { if (!e.http || e.http >= 500) break; console.warn("voo recusado pelo banco", p.id, e.http); }   // 4xx: dado inválido, não trava a fila
+        gravar(CHAVE.fila, ler(CHAVE.fila, []).filter((x) => !(x.id === p.id && x._v === p._v)));
+      }
+    } finally { enviando = false; }
+  }
+  function marcarSync(id) {
+    const todas = partidas(), p = todas.find((x) => x.id === id);
+    if (p && !p.syncEm) { p.syncEm = Date.now(); gravar(CHAVE.partidas, todas); }
+  }
+  async function lerRanking(forcar) {
+    const dia = hoje(), pedido = Date.now();
+    if (!forcar && dia === diaLista && performance.now() - lidoEm < 12000) return;
+    lidoEm = performance.now();
+    try {
+      const r = await rpc("voo_ranking", { p_dia: dia });
+      listaEm = pedido;
+      lista = r.map((x) => ({ id: x.id, quando: x.quando, dia: x.dia, municipioCod: x.municipio_cod, municipio: x.municipio, pontos: x.pontos, nome: x.nome || "", cargo: x.cargo || "", web: true }));
+      diaLista = dia;
+      if (J.estado === "inicio" && !$("#equipe").classList.contains("ativo")) pintarRankingInicio();
+    } catch { /* sem internet: fica o ranking deste aparelho */ }
+  }
+  addEventListener("online", () => { descarregar(); lerRanking(true); });
+  setInterval(() => { descarregar(); if (["inicio", "cidade", "fim", "ranking"].includes(J.estado)) lerRanking(); }, 20000);
+  setTimeout(descarregar, 1500);
+  return {
+    enviar, lerRanking, estado: () => ok, listaEm: () => listaEm,
+    ranking: (dia) => (dia === diaLista ? lista : []),
+    senhaOk: (pin) => rpc("voo_equipe_ok", { p_pin: pin }),
+    zerar: async (pin) => { const n = await rpc("voo_equipe_zerar", { p_pin: pin, p_escopo: "tudo" }); lista = []; lerRanking(true); return n; },
+    fichas: async (pin) => (await rpc("voo_equipe_fichas", { p_pin: pin })).map((x) => ({ ...x, dia: String(x.dia) })),
+  };
+})();
 
 /* ============================== partida ============================== */
 // fontes da marca (Atyp) carregadas antes do primeiro texto no canvas

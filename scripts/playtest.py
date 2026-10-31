@@ -5,7 +5,7 @@ Uso: playtest.py PASTA_REPO PASTA_SAIDA [perfil ...]
 Perfis: leigo-celular, tv-controle, cidade-pequena, cidade-grande, leigo-tv, apressado
 Saída: PASTA_SAIDA/<perfil>/ (prints + telemetria.json) e PASTA_SAIDA/resumo_<perfis>.json
 """
-import json, math, random, sys, time
+import json, os, math, random, sys, time
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -89,7 +89,7 @@ def jogar(b, nome, P):
     erros, eventos, amostras, ux = [], [], [], {}
     pg.on("console", lambda m: erros.append(f"console {m.type}: {m.text}") if m.type in ("error", "warning") else None)
     pg.on("pageerror", lambda e: erros.append(f"pageerror: {e}"))
-    cfg = {"duracao": 60, "som": False, "premio": "voo de drone com Raio-X de até 30 ha", "voltarInicio": 12 if P["cerebro"] == "apressado" else 60}
+    cfg = {"tempoMedio": int(os.environ.get("VOO_TEMPO", 80)), "som": False, "premio": "voo de drone com Raio-X de até 30 ha", "voltarInicio": 12 if P["cerebro"] == "apressado" else 60}
     pg.add_init_script(f"window.__COM_PAD__ = {str(P['entrada'] == 'pad').lower()}; localStorage.setItem('voo-cadastral:config', {json.dumps(json.dumps(cfg))});" + INIT)
     cdp = ctx.new_cdp_session(pg) if P["toque"] else None
     t0 = time.time()
