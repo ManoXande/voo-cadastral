@@ -244,6 +244,7 @@ body.toque .tecla, body.toque .dica-teclado { display: none; }   /* no celular n
 .ganho p { margin: .4em 0 0; font-size: calc(var(--u) * 1); color: #cbd5e1; line-height: 1.5; }
 .ganho .ganho-rot { margin: 0 0 .2em; font-family: var(--display); font-weight: 600; font-size: calc(var(--u) * 1.1); color: var(--branco); }
 .ganho p b { color: var(--branco); }
+.ganho p.defasado { margin-top: .6em; padding-top: .6em; border-top: 1px dashed rgba(148,163,184,.3); font-size: calc(var(--u) * .92); color: #94a3b8; }
 .nota { font-size: max(11px, calc(var(--u) * .8)); color: var(--cinza2); margin-top: var(--u); line-height: 1.5; }
 .cib { margin-top: var(--u); padding: .6em .9em; border-radius: 12px; background: rgba(74,222,128,.08); border: 1px solid var(--linha-verde);
   font-family: var(--display); font-weight: 600; font-size: calc(var(--u) * 1.15); color: var(--branco); }
