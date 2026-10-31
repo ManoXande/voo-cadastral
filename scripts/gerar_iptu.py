@@ -8,10 +8,13 @@ Entradas (em PASTA_REPO/dados):
   municipios.js                scripts/gerar_cidades.py (população e edificações)
   casos_recadastramento.json   pesquisa de casos com fonte (opcional)
 
-Faixa de ganho: só casos de confiança alta que medem arrecadação ou valor lançado de IPTU e que, pela fonte,
-não tiveram nova planta de valores nem mudança de alíquota (mistura_pgv_ou_aliquota = false). Com até 3 casos,
-a faixa vai do menor ao maior; com mais, do menor à mediana. Casos que medem o cadastro (área construída achada,
-imóveis corrigidos) entram à parte, como evidência de cadastro defasado.
+Ganho no Raio-X (duas referências, escolhidas à mão no JSON pelo campo uso_jogo, sempre confiança alta e receita medida):
+  recadastramento     cadastro que existe e é atualizado; sem planta de valores nem alíquota nova. É o número principal
+                      ("poderia arrecadar R$ Y"); com 1 a 3 casos vale a mediana do aumento real.
+  cadastro_defasado   cadastro de décadas, com muito imóvel fora; a fonte diz que não houve aumento de alíquota.
+                      Aparece como comparação ("onde o cadastro estava muito defasado, o ganho foi maior").
+A referência nacional (BNDES/PMAT, média de 420 municípios) vai junto do número principal. Casos que medem o cadastro
+(área construída achada, imóveis corrigidos) entram à parte, como evidência de cadastro defasado.
 """
 import json, statistics, sys
 from pathlib import Path
@@ -45,13 +48,16 @@ for r in df.itertuples():
 
 casos = None
 arq = D / "casos_recadastramento.json"
-ROTULO = {"Criciúma": "Criciúma/SC, que corrigiu o cadastro de um bairro (+16% no IPTU lançado)"}
+ROTULO = {"Criciúma": "Criciúma/SC (+16% num bairro recadastrado)"}
 CAMPOS = ("municipio", "uf", "populacao_aprox", "ano", "o_que_mede", "antes", "depois", "aumento_pct", "como_fizeram", "fonte_titulo", "fonte_url", "fonte_tipo")
 if arq.exists():
     j = json.loads(arq.read_text(encoding="utf-8"))
     receita = lambda c: any(k in (c.get("o_que_mede") or "") for k in ("arrecadação", "valor lançado"))
     # "mais receita sem aumentar imposto": só casos que a fonte diz que não tiveram nova planta de valores nem alíquota
-    limpos = [c for c in j.get("casos", []) if c.get("confianca") == "alta" and c.get("aumento_pct") and receita(c) and c.get("mistura_pgv_ou_aliquota") is False]
+    usa = lambda u: [c for c in j.get("casos", []) if c.get("uso_jogo") == u and c.get("confianca") == "alta" and receita(c) and c.get("pct_real")]
+    limpos, defasados = usa("recadastramento"), usa("cadastro_defasado")
+    real = lambda l: statistics.median(float(c["pct_real"]) for c in l)
+    pmat = next((e for e in j.get("estudos_agregados", []) if "PMAT" in e.get("titulo", "")), None)
     cadastro = [c for c in j.get("casos", []) if c.get("confianca") == "alta" and not receita(c) and c.get("mistura_pgv_ou_aliquota") is not True]
     cadastro.sort(key=lambda c: (c.get("uf") != "SC", c.get("uf") not in ("PR", "RS")))
     # frase curta para a tela do jogo (mesmos números da fonte)
@@ -60,14 +66,20 @@ if arq.exists():
     for c in cadastro:
         c["frase"] = FRASES.get(c["municipio"])
     if limpos:
-        pcts = sorted(float(c["aumento_pct"]) for c in limpos)
-        topo = pcts[-1] if len(pcts) <= 3 else statistics.median(pcts)   # com poucos casos, o maior; com muitos, a mediana
         casos = {
-            "min": round(pcts[0]), "max": round(topo), "n": len(pcts),
-            "fonteCurta": " e ".join(ROTULO.get(c["municipio"], f"{c['municipio']}/{c['uf']} (+{round(c['aumento_pct'])}%)") for c in sorted(limpos, key=lambda c: c["aumento_pct"])),
-            "casos": [{k: c.get(k) for k in CAMPOS} for c in limpos],
+            "pct": round(real(limpos)), "n": len(limpos),
+            "fonteCurta": " e ".join(ROTULO.get(c["municipio"], f"{c['municipio']}/{c['uf']} (+{round(c['pct_real'])}%)") for c in limpos),
+            # média nacional, ao lado do número principal
+            "ref": pmat and {"pct": 12.6, "rot": "média de 420 municípios apoiados pelo BNDES", "fonte_url": pmat.get("fonte_url")},
+            # comparação: cadastro muito defasado (cadastramento)
+            "defasado": defasados and {"pct": round(real(defasados)), "rot": " e ".join(f"{c['municipio']}/{c['uf']}" for c in defasados),
+                                       "casos": [{k: c.get(k) for k in CAMPOS + ("pct_real",)} for c in defasados]},
+            "casos": [{k: c.get(k) for k in CAMPOS + ("pct_real",)} for c in limpos],
+            # tabela do relatório: todos os casos com receita medida, recadastramento × cadastramento, com aviso de mistura
+            "comparativo": [{k: c.get(k) for k in CAMPOS + ("tipo", "pct_real", "pct_calculado", "mistura_pgv_ou_aliquota", "confianca", "obs")}
+                            for c in j.get("casos", []) if receita(c) and c.get("aumento_pct") and c.get("confianca") in ("alta", "media")],
             "cadastro": [{k: c.get(k) for k in CAMPOS + ("frase",)} for c in cadastro],
-            "estudos": [{"trecho": e.get("trecho"), "fonte": f"{e.get('fonte')}, {e.get('ano')}", "titulo": e.get("titulo"), "fonte_url": e.get("fonte_url")}
+            "estudos": [{"trecho": e.get("trecho"), "fonte": f"{e.get('fonte')}, {e.get('ano')}", "titulo": e.get("titulo"), "fonte_url": e.get("fonte_url"), "obs": e.get("obs")}
                         for e in j.get("estudos_agregados", []) if e.get("fonte_url") and e.get("confianca", "alta") == "alta"],
         }
 
@@ -76,7 +88,7 @@ js = ("// Gerado por scripts/gerar_iptu.py. IPTU: Tesouro Nacional, Siconfi, DCA
       "window.IPTU = " + json.dumps(saida, ensure_ascii=False, separators=(",", ":")) + ";\n"
       "window.CASOS_RECADASTRO = " + json.dumps(casos, ensure_ascii=False, separators=(",", ":")) + ";\n")
 (D / "iptu.js").write_text(js, encoding="utf-8")
-print(len(saida), "municípios com IPTU;", "casos:", casos and (casos["n"], casos["min"], casos["max"]))
+print(len(saida), "municípios com IPTU;", "ganho:", casos and (casos["pct"], casos["fonteCurta"], casos["defasado"] and (casos["defasado"]["pct"], casos["defasado"]["rot"])), "comparativo:", casos and len(casos["comparativo"]))
 print(grupo.round(2).to_string())
 for cod in ("4204202", "4215695", "4207700", "4205407"):
     print(cod, saida.get(cod))

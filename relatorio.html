@@ -134,18 +134,24 @@ function montar() {
   if (V && CASOS) {
     const pct = (x) => Number(x).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
     const fonte = (c) => `<a href="${esc(c.fonte_url)}">${esc(c.fonte_titulo || c.fonte_url)}</a>`;
-    h += `<h2><span class="n">2</span>O que municípios que recadastraram conseguiram</h2>
-      <div class="destaque"><div class="valor">+${CASOS.max > CASOS.min ? reais(V.v * CASOS.min / 100) + " a +" + reais(V.v * CASOS.max / 100) : reais(V.v * CASOS.min / 100)} por ano</div>
-      <p>é quanto o IPTU de ${esc(M.n)} poderia crescer, em simulação com o resultado de ${esc(CASOS.fonteCurta)}, <b>sem aumentar alíquota</b>: só levando para o cadastro o que já está construído.</p></div>
-      <p><b>Receita de IPTU, antes × depois</b></p>
-      <table><tr><th>Município</th><th>O que mudou</th><th>Aumento</th><th>Fonte</th></tr>
-      ${CASOS.casos.map((c) => `<tr><td><b>${esc(c.municipio)}/${esc(c.uf)}</b><br>${esc(c.ano || "")}</td><td>${esc(c.o_que_mede)}: ${esc(c.antes)} → ${esc(c.depois)}</td><td><b>+${pct(c.aumento_pct)}%</b></td><td>${fonte(c)}</td></tr>`).join("")}
+    const D = CASOS.defasado;
+    const ordem = { recadastramento: 0, cadastramento: 1 };
+    const linhas = (CASOS.comparativo || []).slice().sort((a, b) => (ordem[a.tipo] ?? 0) - (ordem[b.tipo] ?? 0));
+    const aumento = (c) => c.pct_real ? `<b>+${pct(c.pct_real)}%</b><br><small>acima da inflação</small>` : `<b>+${pct(c.aumento_pct)}%</b><br><small>sem descontar a inflação</small>`;
+    h += `<h2><span class="n">2</span>Recadastramento × cadastramento: o que os municípios mediram</h2>
+      <div class="destaque"><div class="valor">+${reais(V.v * CASOS.pct / 100)} por ano</div>
+      <p>é quanto o IPTU de ${esc(M.n)} poderia crescer com o <b>recadastramento</b> (+${CASOS.pct}%), <b>sem aumentar alíquota</b>: só levando para o cadastro o que já está construído. Simulação com o resultado de ${esc(CASOS.fonteCurta)}${CASOS.ref ? `; na ${esc(CASOS.ref.rot)}, o IPTU cresceu ${pct(CASOS.ref.pct)}%` : ""}.
+      ${D ? `<br>Onde o cadastro estava <b>muito defasado</b>, com muito imóvel fora dele, o ganho foi maior: +${D.pct}% acima da inflação em ${esc(D.rot)}, o que daria <b>+${reais(V.v * D.pct / 100)} por ano</b> em ${esc(M.n)}.` : ""}</p></div>
+      <p><b>Receita de IPTU antes × depois</b></p>
+      <table><tr><th>Município</th><th>Tipo</th><th>O que mudou</th><th>Aumento</th><th>Fonte</th></tr>
+      ${linhas.map((c) => `<tr><td><b>${esc(c.municipio)}/${esc(c.uf)}</b><br>${esc(c.ano || "")}</td><td>${c.tipo === "cadastramento" ? "cadastro muito defasado" : "recadastramento"}</td><td>${esc(c.o_que_mede)}: ${esc(c.antes)} → ${esc(c.depois)}${c.mistura_pgv_ou_aliquota ? "<br><small>* junto com planta de valores ou lei tributária nova</small>" : ""}${c.confianca !== "alta" ? "<br><small>número da imprensa ou do fornecedor, sem dado primário</small>" : ""}</td><td>${aumento(c)}</td><td>${fonte(c)}</td></tr>`).join("")}
       </table>
+      <p class="nota" style="margin-top:2mm"><b>Como ler:</b> recadastramento é atualizar um cadastro que já existe; cadastro muito defasado é quando boa parte dos imóveis nem estava nele (em Mossoró, o cadastro era de 1991). Casos com * mudaram a planta de valores ou a lei no mesmo período, então o ganho não é só do cadastro. A simulação usa só casos de fonte acadêmica conferida, com receita medida e sem aumento de alíquota.</p>
       <p style="margin-top:4mm"><b>O que o recadastramento achou no cadastro</b></p>
       <table><tr><th>Município</th><th>Achado</th><th>Fonte</th></tr>
       ${CASOS.cadastro.map((c) => `<tr><td><b>${esc(c.municipio)}/${esc(c.uf)}</b><br>${esc(c.ano || "")}</td><td>${esc(c.depois)}${c.antes && c.antes !== "n/d" ? `<br><small>antes: ${esc(c.antes)}</small>` : ""}</td><td>${fonte(c)}</td></tr>`).join("")}
       </table>
-      ${CASOS.estudos && CASOS.estudos.length ? `<p class="nota" style="margin-top:3mm"><b>No Brasil:</b> ${CASOS.estudos.map((e) => `“${esc(e.trecho)}” (<a href="${esc(e.fonte_url)}">${esc(e.fonte)}</a>)`).join(" · ")}</p>` : ""}`;
+      ${CASOS.estudos && CASOS.estudos.length ? `<p class="nota" style="margin-top:3mm"><b>Estudos com muitos municípios:</b> ${CASOS.estudos.map((e) => `${esc(e.trecho)} (<a href="${esc(e.fonte_url)}">${esc(e.fonte)}</a>)${e.obs ? ` <i>${esc(e.obs)}</i>` : ""}`).join(" · ")}</p>` : ""}`;
   }
 
   h += `<h2><span class="n">${V && CASOS ? 3 : V ? 2 : 1}</span>Como a Autha faz</h2>
@@ -156,7 +162,7 @@ function montar() {
       <li><b>CIB/SINTER</b>: o cadastro organizado no formato da Receita Federal. ${capital ? "O CIB das capitais já está valendo." : "O CIB é obrigatório para os imóveis urbanos dos municípios a partir de janeiro de 2027."}</li>
     </ol>
     <div class="destaque" style="margin-top:6mm"><b>Próximo passo: peça o diagnóstico do seu cadastro.</b><p>O setor de tributos envia a planilha do cadastro imobiliário e a Autha mostra quais imóveis têm área construída diferente da imagem de satélite e do voo de drone.</p></div>
-    <p class="nota" style="margin-top:6mm">Fontes: edificações — Overture Maps Foundation, release 2026-10-21.0 (inclui Google Open Buildings, Microsoft e OpenStreetMap), cruzadas com os setores censitários do IBGE 2022; população — IBGE, Censo 2022; IPTU — Tesouro Nacional, Siconfi, Declaração de Contas Anuais (Anexo I-C, conta 1.1.1.2.50, receita líquida)${CASOS ? "; casos de recadastramento — fontes indicadas na tabela" : ""}.
+    <p class="nota" style="margin-top:6mm">Fontes: edificações — Overture Maps Foundation, release 2026-10-21.0 (inclui Google Open Buildings, Microsoft e OpenStreetMap), cruzadas com os setores censitários do IBGE 2022; população — IBGE, Censo 2022; IPTU — Tesouro Nacional, Siconfi, Declaração de Contas Anuais (Anexo I-C, conta 1.1.1.2.50, receita líquida)${CASOS ? "; casos de recadastramento e de cadastro defasado — fontes indicadas na tabela" : ""}.
     Prédio com vários apartamentos conta como 1 edificação; galpões e aviários entram na contagem. Este relatório é uma estimativa para conversa e não é lançamento de imposto: o potencial real depende do cadastro, da planta de valores e da legislação de cada município.</p>
     <div class="rodape"><span><b>Autha-Geo</b> · gestão territorial simplificada</span><span><b>(49) 99971-9388</b> · authamapeamento@gmail.com · autha.eng.br</span></div>
   </div>`;

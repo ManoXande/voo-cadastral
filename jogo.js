@@ -1158,12 +1158,12 @@ function mensagem(t1, t2, t3, prioridade = false) {
 }
 
 /* ============================== IPTU: atual e potencial ============================== */
-// IPTU arrecadado vem do Tesouro (Siconfi/DCA); a faixa de ganho vem de casos reais de recadastramento (dados/iptu.js)
+// IPTU arrecadado vem do Tesouro (Siconfi/DCA). O ganho vem de casos medidos (dados/iptu.js): o principal é o de
+// recadastramento (cadastro que existe, atualizado); a comparação é o de cadastro muito defasado (cadastramento)
 function potencial(cod) {
-  const v = IPTU[cod], m = MUN_POR_COD[cod];
-  if (!v || !v.v) return null;
-  if (CASOS && CASOS.min) return { tipo: "casos", ganhoMin: v.v * CASOS.min / 100, ganhoMax: v.v * CASOS.max / 100 };
-  return null;
+  const v = IPTU[cod];
+  if (!v || !v.v || !CASOS || !CASOS.pct) return null;
+  return { ganho: v.v * CASOS.pct / 100, defasado: CASOS.defasado ? v.v * CASOS.defasado.pct / 100 : 0 };
 }
 
 /* ============================== telas ============================== */
@@ -1345,23 +1345,24 @@ function htmlIptu(cod, m) {
   const capital = cod === "4205407";
   const caso = ((CASOS && CASOS.cadastro) || []).find((c) => c.uf === "SC" && c.frase);
   const proprio = caso && caso.municipio === m.n;
-  const pctTxt = (a, b) => (b > a ? `+${a}% a ${b}%` : `+${a}%`);
   let h = `<span class="chip">RAIO-X DO IPTU</span><h2>${esc(m.n)}</h2>`;
   if (pot) {
     // simulação: IPTU de hoje × o aumento medido em recadastramentos reais (sem mudar alíquota)
-    const hoje = arredReais(v.v), ganho = arredReais(pot.ganhoMax), depois = hoje + ganho;
+    const hoje = arredReais(v.v), ganho = arredReais(pot.ganho), depois = hoje + ganho, D = CASOS.defasado;
     h += `<div class="linha-iptu"><span>Hoje: IPTU arrecadado em ${v.a}</span><b>${reais(hoje)}</b></div>
       <div class="ganho"><p class="ganho-rot">Com 100% dos imóveis mapeados pela Autha-Geo, ${esc(m.n)} poderia arrecadar</p>
       <div class="valor">${reais(depois)} por ano</div>
-      <p><b>+${reais(ganho)} por ano (${pctTxt(CASOS.min, CASOS.max)})</b> com o recadastramento, <b>sem aumentar alíquota</b>.
-      Valor simulado com o resultado de ${esc(CASOS.fonteCurta)}.</p></div>`;
+      <p><b>+${reais(ganho)} por ano (+${CASOS.pct}%)</b> com o recadastramento, <b>sem aumentar alíquota</b>.
+      Valor simulado com o resultado de ${esc(CASOS.fonteCurta)}${CASOS.ref ? `; na ${esc(CASOS.ref.rot)}, +${pctBr(CASOS.ref.pct)}%` : ""}.</p>
+      ${D ? `<p class="defasado">Onde o cadastro estava muito defasado, o ganho foi maior: <b>+${D.pct}% em ${esc(D.rot)}</b>, acima da inflação. Em ${esc(m.n)}, seriam <b>+${reais(arredReais(pot.defasado))} por ano</b>.</p>` : ""}</div>`;
   } else if (v && v.v) h += `<div class="linha-iptu"><span>Hoje: IPTU arrecadado em ${v.a}</span><b>${reais(v.v)}</b></div>`;
   else {
     // sem IPTU no Tesouro: diz isso com franqueza e mostra o ganho medido no caso real
     h += `<div class="linha-iptu"><span>IPTU arrecadado hoje</span><b>dado indisponível</b></div>`;
-    if (CASOS && CASOS.min) h += `<div class="ganho"><p class="ganho-rot">Com 100% dos imóveis mapeados pela Autha-Geo</p>
-      <div class="valor">${pctTxt(CASOS.min, CASOS.max)} de IPTU</div>
-      <p>foi o ganho medido em ${esc(CASOS.fonteCurta.split(",")[0])} com o recadastramento, <b>sem aumentar alíquota</b>. Com os números da prefeitura, a Autha-Geo calcula quanto isso dá em ${esc(m.n)}.</p></div>`;
+    if (CASOS && CASOS.pct) h += `<div class="ganho"><p class="ganho-rot">Com 100% dos imóveis mapeados pela Autha-Geo</p>
+      <div class="valor">+${CASOS.pct}% de IPTU</div>
+      <p>foi o ganho medido em ${esc(CASOS.fonteCurta.split(",")[0])} com o recadastramento, <b>sem aumentar alíquota</b>${CASOS.ref ? ` (${esc(CASOS.ref.rot)}: +${pctBr(CASOS.ref.pct)}%)` : ""}.
+      ${CASOS.defasado ? `Onde o cadastro estava muito defasado, chegou a +${CASOS.defasado.pct}% (${esc(CASOS.defasado.rot)}).` : ""} Com os números da prefeitura, a Autha-Geo calcula quanto isso dá em ${esc(m.n)}.</p></div>`;
   }
   if (proprio) h += `<p class="caso"><b>${esc(m.n)} já deu o primeiro passo:</b> ${esc(caso.frase)}. Agora é manter o cadastro vivo e pronto para o CIB.<small>Prefeitura de ${esc(caso.municipio)}</small></p>`;
   else if (caso) h += `<p class="caso"><b>Aqui na região:</b> ${esc(caso.municipio)} ${esc(caso.frase)}.<small>${caso.fonte_tipo === "prefeitura" ? "Prefeitura de " + esc(caso.municipio) : "fonte no relatório"}</small></p>`;
@@ -1371,6 +1372,7 @@ function htmlIptu(cod, m) {
   return h;
 }
 
+const pctBr = (x) => Number(x).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 function prazoCib() {
   const d = new Date(), meses = (2027 - d.getFullYear()) * 12 - d.getMonth();
   if (meses <= 0) return "CIB obrigatório para todo imóvel urbano desde janeiro de 2027.";

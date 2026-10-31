@@ -29,7 +29,7 @@ As fichas e o ranking ficam no navegador do notebook (localStorage). **Baixe a p
 - Ajuda: depois de ~1 s sem cadastrar, setas saem do drone apontando o que falta (ou a bateria, quando ela está acabando). Quem está abaixo da meta (50% no fim) ganha um laser até 35% mais largo, sem aviso; o piloto bom não recebe.
 - A pontuação é proporcional à fração da cidade cadastrada, então cidade pequena e cidade grande disputam de igual para igual.
 - Ranking do dia no voo: passar alguém do top 5 aparece sobre o drone; passar o 1º lugar é "Novo recorde do dia!".
-- No resultado: 1 a 3 estrelas (área de voo: 45% e 75%), "faltaram X pontos para passar Fulano", "Você mapeou X% do município" (sobre todas as edificações do município) e a simulação do IPTU com 100% mapeado (IPTU de hoje × o aumento medido nos casos de recadastramento). Município sem IPTU no Tesouro mostra "dado indisponível" e o ganho medido no caso real.
+- No resultado: 1 a 3 estrelas (área de voo: 45% e 75%), "faltaram X pontos para passar Fulano", "Você mapeou X% do município" (sobre todas as edificações do município) e a simulação do IPTU com 100% mapeado: IPTU de hoje × o aumento medido em recadastramento (Criciúma/SC, +16%, ao lado da média BNDES de 420 municípios, +12,6%), comparado com o de cadastro muito defasado (Mossoró/RN, +39% acima da inflação). Município sem IPTU no Tesouro mostra "dado indisponível" e o ganho medido no caso real.
 - O ranking e as fichas da v3 ficam em `voo-cadastral:partidas-v3` no navegador, separados da v1 e da v2 (a escala de pontos mudou).
 
 ## Publicação (GitHub Pages)
